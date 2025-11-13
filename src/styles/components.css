@@ -1,0 +1,20 @@
+@tailwind components;
+
+@layer components {
+    .textarea-primary {
+        @apply border border-gray-200 rounded-md p-2 resize-none font-sans text-sm font-normal text-gray-700 outline outline-0;
+        @apply placeholder:text-gray-400 placeholder:font-normal;
+        @apply focus:border-1 focus:border-gray-900;
+    }
+
+    .primary-button {
+        background-color: var(--color-primary);
+        @apply cursor-pointer;
+        @apply text-white font-semibold py-2 px-4 rounded-full;
+
+        &:hover {
+            background-color: var(--color-primary-hover);
+        }
+    }
+
+}

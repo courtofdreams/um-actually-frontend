@@ -1,33 +1,32 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import Main from './components/Main';
+import VideoAnalysis from './components/VideoAnalysis';
+import TextAnalysis from './components/TextAnalysis';
+import { AppContext, Screen } from './contexts/AppContext';
+import { JSX, useState } from 'react';
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+  const [userInput, setUserInput] = useState("");
+  const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.MAIN);
+
+    const renderScreen = (): JSX.Element => {
+    switch (currentScreen) {
+      case Screen.MAIN:
+        return <Main />;
+      case Screen.VIDEO_ANALYSIS:
+        return <VideoAnalysis />;
+      case Screen.TEXT_ANALYSIS:
+        return <TextAnalysis />;
+      default:
+        return <Main />;
+    }
+  };
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <AppContext.Provider value={{ userInput, currentScreen, setUserInput, setCurrentScreen }}>
+        {renderScreen()}
+      </AppContext.Provider>
     </>
   )
 }
