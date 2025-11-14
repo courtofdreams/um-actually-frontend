@@ -8,13 +8,8 @@
     }
 
     .primary-button {
-        background-color: var(--color-primary);
         @apply cursor-pointer;
-        @apply text-white font-semibold py-2 px-4 rounded-full;
-
-        &:hover {
-            background-color: var(--color-primary-hover);
-        }
+        @apply items-center justify-center gap-2 rounded-full bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700;
     }
 
 }
