@@ -12,4 +12,24 @@
         @apply items-center justify-center gap-2 rounded-full bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700;
     }
 
+    .secondary-button {
+        @apply cursor-pointer;
+        @apply items-center justify-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50;
+    }
+
+    .progress-bar {
+        @apply w-full bg-gray-200 rounded-full h-2;
+
+        .progress-fill {
+            @apply h-2 rounded-full bg-gray-600;
+        }
+    }
+
+    .marker {
+        @apply bg-yellow-200 cursor-pointer;
+    }
+
+    .shadow-card {
+        @apply shadow-[-1px_0px_14px_-4px_rgba(0,_0,_0,_0.1)];
+    }
 }
