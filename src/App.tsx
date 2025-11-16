@@ -7,7 +7,7 @@ import { JSX, useState } from 'react';
 
 const App = () => {
   const [userInput, setUserInput] = useState("");
-  const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.TEXT_ANALYSIS);
+  const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.MAIN);
 
     const renderScreen = (): JSX.Element => {
     switch (currentScreen) {
