@@ -1,0 +1,15 @@
+@tailwind components;
+
+@layer components {
+    .textarea-primary {
+        @apply border border-gray-200 rounded-md p-2 resize-none font-sans text-sm font-normal text-gray-700 outline outline-0;
+        @apply placeholder:text-gray-400 placeholder:font-normal;
+        @apply focus:border-1 focus:border-gray-900;
+    }
+
+    .primary-button {
+        @apply cursor-pointer;
+        @apply items-center justify-center gap-2 rounded-full bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700;
+    }
+
+}
