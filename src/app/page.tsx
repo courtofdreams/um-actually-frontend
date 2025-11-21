@@ -1,15 +1,16 @@
-import './App.css'
-import Main from './components/Main';
-import VideoAnalysis from './components/VideoAnalysis';
-import TextAnalysis from './components/TextAnalysis';
-import { AppContext, Screen } from './contexts/AppContext';
-import { JSX, useState } from 'react';
+"use client"
 
-const App = () => {
+import Main from '@/components/Main';
+import VideoAnalysis from '@/components/VideoAnalysis';
+import TextAnalysis from '@/components/TextAnalysis';
+import { AppContext, Screen } from '@/contexts/AppContext';
+import React, { useState } from "react";
+
+export default function App() {
   const [userInput, setUserInput] = useState("");
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.MAIN);
 
-    const renderScreen = (): JSX.Element => {
+  const renderScreen = (): React.ReactElement => {
     switch (currentScreen) {
       case Screen.MAIN:
         return <Main />;
@@ -20,7 +21,7 @@ const App = () => {
       default:
         return <Main />;
     }
-  };
+  }
 
   return (
     <>
@@ -31,4 +32,4 @@ const App = () => {
   )
 }
 
-export default App
+
