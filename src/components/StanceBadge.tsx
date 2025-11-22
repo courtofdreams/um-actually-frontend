@@ -9,7 +9,7 @@ const STANCE_CONFIG: Record<
     { label: string; border: string; text: string; icon: string }
 > = {
     partial: {
-        label: "Partial Support",
+        label: "Partially Support",
         border: "border-orange-400",
         text: "text-orange-500",
         icon: "text-orange-400",

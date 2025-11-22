@@ -54,13 +54,13 @@ const SourceCard = ({ claimReference, title, url, ratingStance, snippet, datePos
                         <div className="text-left text-sm font-semibold text-gray-900">
                             {title}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-left text-xs text-gray-500">
                             {datePosted}
                         </div>
                     </div>
                 </div>
 
-                <StanceBadge stance={stanceMapping[ratingStance] || "undefined"} />
+                <StanceBadge stance={stanceMapping[ratingStance.toLowerCase()] || "undefined"} />
             </div>
 
             <div className="px-4 py-3 overflow-hidden transition-all duration-300 
