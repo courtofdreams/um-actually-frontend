@@ -42,7 +42,6 @@ const StanceBadge = ({ stance }: StanceBadgeProps) => {
         <div
             className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium ${cfg.border} ${cfg.text}`}
         >
-            {/* icon circle */}
             <span
                 className={`flex h-5 w-5 items-center justify-center rounded-full border bg-white text-xs ${cfg.border} ${cfg.icon}`}
             >

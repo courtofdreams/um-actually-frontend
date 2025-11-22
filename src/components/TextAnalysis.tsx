@@ -3,6 +3,7 @@ import TopBar from "./TopBar"
 import { useEffect, useRef, useState } from "react";
 import SourceCard from "./SourceCard";
 import ConfidenceCard from "./ConfidenceCard";
+import { ProgressiveBar } from "./ui/progressive-bar";
 
 
 const mockData = {
@@ -99,9 +100,7 @@ const TextAnalysis = () => {
         <div className='p-6 flex flex-row'>
             <div className={`content-box flex flex-col p-6 mr-4 transition-all duration-500 ease-in-out ${showSources ? "w-1/2 border-r" : "w-full"}`}>
                 <p className="text-left font-bold mb-1">Confidence Score: {mockData.confidenceScores}%</p>
-                <div className="progress-bar  mb-4">
-                    <div className="progress-fill" style={{ width: `${mockData.confidenceScores}%` }}></div>
-                </div>
+                <ProgressiveBar className="mb-4" progress={mockData.confidenceScores} />
                 <p className="text-left font-bold mb-1">Confident Score Summary (Reasoning)</p>
                 <p className="text-left mb-4">{mockData.reasoning}</p>
                 <p className="text-left font-bold mb-1">Content</p>
