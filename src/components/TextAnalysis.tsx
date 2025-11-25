@@ -1,3 +1,4 @@
+// @ts-ignore
 import { text } from "@fortawesome/fontawesome-svg-core";
 import TopBar from "./TopBar"
 import { useEffect, useRef, useState } from "react";
