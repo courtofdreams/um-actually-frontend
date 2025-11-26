@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import StanceBadge, { Stance } from "./StanceBadge";
 import { faArrowUpRightFromSquare } from "@fortawesome/free-solid-svg-icons/faArrowUpRightFromSquare";
+import { Button } from "./ui/button";
 
 type SourceCardProps = {
     claimReference?: string;
@@ -43,14 +44,7 @@ const SourceCard = ({ claimReference, title, url, ratingStance, snippet, datePos
 
     return (
         <div
-            className={`
-                p-2
-                group relative rounded-xl bg-white 
-                border border-gray-100 shadow-card 
-                transition-all duration-200 cursor-pointer
-                hover:-translate-y-1 hover:shadow-card
-                -mt-3
-            `}
+            className="p-2 group relative rounded-xl bg-white border border-gray-100 shadow-[-1px_0px_14px_-4px_rgba(0,_0,_0,_0.1)] transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-[-1px_0px_14px_-4px_rgba(0,_0,_0,_0.1)] -mt-3"
             style={{ zIndex: index + 1 }}
         >
             <div className="flex items-start justify-between gap-4">
@@ -60,13 +54,13 @@ const SourceCard = ({ claimReference, title, url, ratingStance, snippet, datePos
                         <div className="text-left text-sm font-semibold text-gray-900">
                             {title}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-left text-xs text-gray-500">
                             {datePosted}
                         </div>
                     </div>
                 </div>
 
-                <StanceBadge stance={stanceMapping[ratingStance] || "undefined"} />
+                <StanceBadge stance={stanceMapping[ratingStance.toLowerCase()] || "undefined"} />
             </div>
 
             <div className="px-4 py-3 overflow-hidden transition-all duration-300 
@@ -83,21 +77,13 @@ const SourceCard = ({ claimReference, title, url, ratingStance, snippet, datePos
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                    <button
-                        type="button"
-                        className="inline-flex w-40  flex-initial secondary-button "
-                    >
+                     <Button onClick={openLink} variant="secondary" size="sm" className="rounded-full">
                         See detailed rating
-                    </button>
-
-                    <button
-                        onClick={openLink}
-                        type="button"
-                        className="inline-flex w-40 flex-initial primary-button w-14"
-                    >
+                     </Button>
+                    <Button onClick={openLink} variant="default" size="sm" className="rounded-full">
                         <FontAwesomeIcon className="h-4 w-4" icon={faArrowUpRightFromSquare} />
-                        <span>Read article</span>
-                    </button>
+                        Read article
+                    </Button>
                 </div>
             </div>
         </div>

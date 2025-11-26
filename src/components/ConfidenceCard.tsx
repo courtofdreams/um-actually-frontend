@@ -23,7 +23,7 @@ const ConfidenceCard = ({
     return (
         <div
             className="
-       group relative rounded-xl bg-white shadow-card
+       group relative rounded-xl bg-white shadow-[-1px_0px_14px_-4px_rgba(0,_0,_0,_0.1)]
        px-2 py-3 flex flex-col items-center justify-between border border-gray-100 
        hover:-translate-y-1 hover:shadow-xl transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-xl
        -mt-3

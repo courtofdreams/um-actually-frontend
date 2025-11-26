@@ -1,7 +1,15 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faHandPointer } from '@fortawesome/free-solid-svg-icons/faHandPointer'
 import { useContext, useState } from 'react'
-import { AppContext, Screen } from '../contexts/AppContext';
+import { AppContext, Screen } from '@/contexts/AppContext';
+import { DesignMark } from "@/components/assets/DesignMark";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from "@/components/ui/input-group"
+import TypingText from "@/components/ui/shadcn-io/typing-text";
+
+import { ArrowUpIcon } from "lucide-react";
 
 const Main = () => {
     const [inputText, setInputText] = useState("");
@@ -30,7 +38,6 @@ const Main = () => {
             setUserInput(inputText);
             setCurrentScreen(Screen.TEXT_ANALYSIS);
             return;
-
         }
 
         alert("Please enter a valid YouTube URL or text input.");
@@ -39,15 +46,43 @@ const Main = () => {
     }
 
     return (
-        <>
-            <div className="flex flex-col items-center justify-center h-screen">
-                <FontAwesomeIcon className="text-gray-800 text-4xl mb-3" icon={faHandPointer} />
-                <h2 className="text-lg">Welcome to </h2>
-                <h1 className="font-bold mt-3 mb-6">Um, Actually?</h1>
-                <textarea name="userInput" className="textarea-primary w-lg" rows={2} placeholder="Enter Youtube URL or Text" value={inputText} onChange={updateText}> </textarea>
-                <button className="primary-button mt-4" onClick={determineInputType}>Submit</button>
-            </div>
-        </>
+        <div className={"flex flex-col items-center justify-center h-screen"}>
+            <DesignMark className={"mb-6"} fill={"#000"}/>
+            <p className="mb-2 text-lg">Welcome to</p>
+            <p className="mb-12 text-4xl font-bold tracking-tight text-heading md:text-5xl lg:text-6xl">Um, Actually?</p>
+            <InputGroup className={"w-1/2 max-w-150 relative items-start"}>
+              {inputText === "" && (
+                  <div className={"flex flex-row items-center justify-start absolute top-3 left-3 pointer-events-none text-base md:text-sm text-muted-foreground"}>
+                    <p>Paste here&nbsp;</p>
+                    <TypingText
+                      text={["a YouTube link", "a whole article", "a link to a blog post"]}
+                      typingSpeed={75}
+                      pauseDuration={1500}
+                      showCursor={false}
+                      cursorCharacter="|"
+                      variableSpeed={{min: 50, max: 120}}
+                    />
+                  </div>
+              )}
+              <InputGroupTextarea
+                  name={"userInput"}
+                  value={inputText}
+                  onChange={updateText}
+              />
+              <InputGroupAddon align="block-end" className={"justify-end"}>
+                <InputGroupButton
+                  variant="default"
+                  className="rounded-full"
+                  size="icon-xs"
+                  onClick={determineInputType}
+                  disabled={inputText.trim() === ""}
+                >
+                  <ArrowUpIcon />
+                  <span className="sr-only">Send</span>
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+        </div>
     )
 }
 
