@@ -39,28 +39,10 @@ export const fetchYoutubeTranscript = async (videoUrl: string): Promise<Transcri
 
     const requestBody = JSON.stringify({ videoUrl, videoId });
 
-    // Try localhost backend first (for development on port 8000)
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/transcript', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: requestBody,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Got transcript from localhost:8000');
-        return data;
-      }
-    } catch (localhostError) {
-      // Fall through to try relative path
-      console.log('Localhost backend not available, trying relative path');
-    }
-
-    // Try relative path backend (for production)
-    const response = await fetch('/api/transcript', {
+    // Get backend URL from environment variable (set at build time)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8000/api';
+    
+    const response = await fetch(`${backendUrl}/transcript`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
