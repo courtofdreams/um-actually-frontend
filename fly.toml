@@ -1,0 +1,78 @@
+# fly.toml app configuration file
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+# IMPORTANT: Update this with your actual Fly.io app name
+# Run: fly apps create <your-frontend-app-name>
+app = "um-actually-frontend"
+primary_region = "sjc"  # San Jose - choose closest to your users
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"  # Stop machines when not in use
+  auto_start_machines = true
+  min_machines_running = 0  # Scale to zero when idle (cost saving)
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 500
+    soft_limit = 400
+
+# HTTP service configuration
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 50
+    soft_limit = 40
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+
+  [[services.http_checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "3s"
+    method = "get"
+    path = "/health"
+    protocol = "http"
+
+[env]
+  # Add environment variables for the frontend if needed
+  # For example, if you need to point to the backend API:
+  NEXT_PUBLIC_API_URL = "https://um-actually-backend.fly.dev" 
+
+# VM Resources (can be smaller for static frontend)
+[vm]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Deploy configuration
+[deploy]
+  strategy = "rolling"  # Zero-downtime deployment
+
+# Metrics (optional but recommended)
+[metrics]
+  port = 9091
+  path = "/metrics"
+

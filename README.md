@@ -1,3 +1,4 @@
+# Um Actually Frontend
 
 ### Project Overview
 This project is a frontend application built with React and TypeScript. It provides users with the ability to analyze text or YouTube video content for accuracy, delivering feedback on the correctness of statements made within the input. 
@@ -39,4 +40,29 @@ styles                          # Global styles and CSS files
 ```
 
 ### Deployment
-- Pending
+
+#### Initial Setup
+```bash
+# Install Fly CLI
+brew install flyctl
+
+# Login to Fly.io
+flyctl auth login
+
+# Update fly.toml line 8 with your app name
+# Create app
+flyctl apps create your-app-name
+
+# Deploy
+flyctl deploy
+```
+
+#### CI/CD
+GitHub Actions auto-deploys on push to `main`. Add secret in repo Settings → Secrets:
+- `FLY_API_TOKEN` (get with `flyctl auth token`)
+
+#### Configuration
+Update `fly.toml` line 62 with backend URL if needed:
+```toml
+NEXT_PUBLIC_API_URL = "https://um-actually-backend.fly.dev"
+```
