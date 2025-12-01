@@ -33,9 +33,9 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          # Add any build-time environment variables here
-          # NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_TELEMETRY_DISABLED: 1
+          # Set backend URL for build-time (static export needs this)
+          NEXT_PUBLIC_BACKEND_API_URL: https://um-actually-backend.fly.dev/api
       
       - name: Verify build output
         run: |

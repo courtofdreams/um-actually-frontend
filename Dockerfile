@@ -20,8 +20,12 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all project files
 COPY . .
 
+# Accept build argument for backend API URL
+ARG NEXT_PUBLIC_BACKEND_API_URL=https://um-actually-backend.fly.dev/api
+
 # Build Next.js application (creates static export in 'out' directory)
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_BACKEND_API_URL=${NEXT_PUBLIC_BACKEND_API_URL}
 RUN npm run build
 
 # Stage 3: Production
