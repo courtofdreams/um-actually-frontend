@@ -7,6 +7,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import TypingText from "@/components/ui/shadcn-io/typing-text";
 
 import { ArrowUpIcon } from "lucide-react";
@@ -46,43 +47,48 @@ const Main = () => {
     }
 
     return (
-        <div className={"flex flex-col items-center justify-center h-screen"}>
-            <DesignMark className={"mb-6"} fill={"#000"}/>
-            <p className="mb-2 text-lg">Welcome to</p>
-            <p className="mb-12 text-4xl font-bold tracking-tight text-heading md:text-5xl lg:text-6xl">Um, Actually?</p>
-            <InputGroup className={"w-1/2 max-w-150 relative items-start"}>
-              {inputText === "" && (
-                  <div className={"flex flex-row items-center justify-start absolute top-3 left-3 pointer-events-none text-base md:text-sm text-muted-foreground"}>
-                    <p>Paste here&nbsp;</p>
-                    <TypingText
-                      text={["a YouTube link", "a whole article", "a link to a blog post"]}
-                      typingSpeed={75}
-                      pauseDuration={1500}
-                      showCursor={false}
-                      cursorCharacter="|"
-                      variableSpeed={{min: 50, max: 120}}
-                    />
-                  </div>
-              )}
-              <InputGroupTextarea
-                  name={"userInput"}
-                  value={inputText}
-                  onChange={updateText}
-              />
-              <InputGroupAddon align="block-end" className={"justify-end"}>
-                <InputGroupButton
-                  variant="default"
-                  className="rounded-full"
-                  size="icon-xs"
-                  onClick={determineInputType}
-                  disabled={inputText.trim() === ""}
-                >
-                  <ArrowUpIcon />
-                  <span className="sr-only">Send</span>
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-        </div>
+        <>
+            <div className="flex items-center gap-2 p-3 border-b">
+                <SidebarTrigger />
+            </div>
+            <div className={"flex flex-col items-center justify-center h-full pb-12"}>
+                <DesignMark className={"mb-6 w-12"} fill={"#000"}/>
+                <p className="mb-2 text-lg">Welcome to</p>
+                <p className="mb-12 text-4xl font-bold tracking-tight text-heading md:text-5xl lg:text-6xl">Um, Actually?</p>
+                <InputGroup className={"mb-8 w-3/4 md:w-1/2 max-w-150 relative items-start"}>
+                  {inputText === "" && (
+                      <div className={"flex flex-row items-center justify-start absolute top-3 left-3 pointer-events-none text-base md:text-sm text-muted-foreground"}>
+                        <p>Paste here&nbsp;</p>
+                        <TypingText
+                          text={["a YouTube link", "a whole article", "a link to a blog post"]}
+                          typingSpeed={75}
+                          pauseDuration={1500}
+                          showCursor={false}
+                          cursorCharacter="|"
+                          variableSpeed={{min: 50, max: 120}}
+                        />
+                      </div>
+                  )}
+                  <InputGroupTextarea
+                      name={"userInput"}
+                      value={inputText}
+                      onChange={updateText}
+                  />
+                  <InputGroupAddon align="block-end" className={"justify-end"}>
+                    <InputGroupButton
+                      variant="default"
+                      className="rounded-full"
+                      size="icon-xs"
+                      onClick={determineInputType}
+                      disabled={inputText.trim() === ""}
+                    >
+                      <ArrowUpIcon />
+                      <span className="sr-only">Send</span>
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+            </div>
+        </>
     )
 }
 

@@ -75,7 +75,7 @@ const Transcript = ({ segments, currentTime, onClaimClick }: TranscriptProps) =>
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex flex-col gap-3 p-4 overflow-y-auto rounded-lg bg-white"
+      className="flex flex-col gap-3 py-4 overflow-y-auto rounded-lg bg-white"
       style={{
         flex: 1,
         width: '100%',
@@ -94,7 +94,7 @@ const Transcript = ({ segments, currentTime, onClaimClick }: TranscriptProps) =>
                 : 'bg-gray-50 border-l-4 border-gray-300'
             }`}
           >
-            <p className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0 pt-1">
+            <p className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0 pt-0.5">
               {Math.floor(segment.startTime)}s - {Math.floor(segment.endTime)}s
             </p>
 
