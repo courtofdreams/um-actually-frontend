@@ -1,11 +1,18 @@
-import TopBar from "./TopBar";
 import VideoPlayer from "./VideoPlayer";
 import Transcript from "./Transcript";
 import SourceCard from "./SourceCard";
 import ConfidenceCard from "./ConfidenceCard";
 import { useContext, useState, useEffect } from "react";
-import { AppContext } from "../contexts/AppContext";
-import { fetchYoutubeTranscript } from "../services/youtubeTranscript";
+import { AppContext } from "@/contexts/AppContext";
+import { fetchYoutubeTranscript } from "@/services/youtubeTranscript";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { ProgressiveBar } from "@/components/ui/progressive-bar";
+import { AlertCircleIcon } from "lucide-react";
+import { saveToHistory } from "./HistorySidebar";
+import { useRouter } from "next/navigation";
+import { TextAnalysisResponse } from "@/hooks/anaysis";
 
 interface TranscriptSegment {
   id: string;
@@ -98,7 +105,12 @@ const generateSourcesForClaim = (claim: string, claimIndex: number) => {
   };
 };
 
-const VideoAnalysis = () => {
+type VideoAnalysisProps = {
+  loadedVideoUrl?: string | null;
+};
+
+const VideoAnalysis = ({ loadedVideoUrl }: VideoAnalysisProps = {}) => {
+  const router = useRouter();
   const { userInput } = useContext(AppContext);
   const [currentTime, setCurrentTime] = useState(0);
   const [showSources, setShowSources] = useState(false);
@@ -107,15 +119,22 @@ const VideoAnalysis = () => {
   const [sources, setSources] = useState<any[]>(mockVideoData.sourcesList);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string>(loadedVideoUrl || userInput);
 
   // Fetch real transcript when video URL changes
   useEffect(() => {
-    if (!userInput) return;
+    const urlToUse = loadedVideoUrl || userInput;
+    if (!urlToUse) return;
+
+    setVideoUrl(urlToUse);
 
     const loadTranscript = async () => {
       setLoading(true);
       setError(null);
-      const result = await fetchYoutubeTranscript(userInput);
+      const result = await fetchYoutubeTranscript(urlToUse);
+
+      let finalSources = mockVideoData.sourcesList;
+      let finalTranscript = mockVideoData.transcript;
 
       if (result.error) {
         setError(result.error);
@@ -124,6 +143,7 @@ const VideoAnalysis = () => {
         setSources(mockVideoData.sourcesList);
       } else if (result.segments && result.segments.length > 0) {
         setTranscript(result.segments);
+        finalTranscript = result.segments;
 
         // Generate dummy sources for each claim in the transcript
         const claimsInTranscript = result.segments.filter((seg) => seg.claim);
@@ -131,16 +151,31 @@ const VideoAnalysis = () => {
           generateSourcesForClaim(seg.claim || "", index)
         );
         setSources(generatedSources);
+        finalSources = generatedSources;
       } else {
         // Use mock data if no segments returned
         setTranscript(mockVideoData.transcript);
         setSources(mockVideoData.sourcesList);
       }
       setLoading(false);
+
+      if (!loadedVideoUrl) {
+        const analysisData: TextAnalysisResponse = {
+          confidenceScores: mockVideoData.confidenceScores,
+          reasoning: mockVideoData.reasoning,
+          htmlContent: finalTranscript.map(s => s.text).join(' ') || 'Video transcript',
+          sourcesList: finalSources
+        };
+
+        const analysisId = saveToHistory(analysisData, 'video', urlToUse);
+        if (analysisId) {
+          router.push(`/video-analysis/${analysisId}`);
+        }
+      }
     };
 
     loadTranscript();
-  }, [userInput]);
+  }, [loadedVideoUrl, userInput]);
 
   const handleClaimClick = (claimIndex: number) => {
     setSelectedClaimIndex(claimIndex);
@@ -153,46 +188,54 @@ const VideoAnalysis = () => {
 
   return (
     <>
-      <TopBar />
-      <div style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        {/* Fixed Header - Video Player (40% width, centered) */}
-        <div style={{
-          flexShrink: 0,
-          padding: '24px',
-          display: 'flex',
-          justifyContent: 'center',
-          backgroundColor: '#ffffff',
-          borderBottom: '1px solid #e5e7eb',
-        }}>
-          <div style={{
-            width: '90%',
-            // maxWidth: '600px',
-          }}>
-            <VideoPlayer videoUrl={userInput} onTimeUpdate={handleTimeUpdate} />
+      {/* Top bar with sidebar trigger */}
+      <div className="flex items-center gap-2 p-3 border-b">
+        <SidebarTrigger />
+      </div>
+
+      {/* Three column layout: Confidence | Video+Transcript | Sources */}
+      <div className="flex flex-row gap-4 p-6 h-[calc(100vh-60px)]">
+        {/* Left Column - Confidence Score */}
+        <div className="w-1/4 min-w-[250px] max-w-[350px] flex-shrink-0">
+          <div className="content-box flex flex-col p-6 h-full">
+            <p className="text-left font-bold mb-1">
+              Confidence Score: {mockVideoData.confidenceScores}%
+            </p>
+            <ProgressiveBar
+              className="mb-4"
+              progress={mockVideoData.confidenceScores}
+            />
+            <p className="text-left font-bold mb-1">
+              Confidence Score Summary (Reasoning)
+            </p>
+            <p className="text-left text-sm">
+              {mockVideoData.reasoning}
+            </p>
           </div>
         </div>
 
-        {/* Scrollable Content Area - Transcript centered with overlays on left and right */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'row',
-          padding: '8px',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          position: 'relative',
-          width: '100%',
-        }}>
-          {/* Transcript Column (40% width, centered, scrollable) */}
-          <div style={{
-            width: '60%',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: 10,
-          }}>
-            {loading && <p className="text-gray-500 text-center py-4">Loading transcript...</p>}
-            {error && <p className="text-red-500 text-center py-4">Error loading transcript: {error}</p>}
+        {/* Center Column - Video Player + Transcript */}
+        <div className='flex-grow'>
+          <div className="flex flex-col justify-center items-center">
+            <VideoPlayer videoUrl={videoUrl} onTimeUpdate={handleTimeUpdate} />
+
+            {loading && (
+              <div className="h-12 w-1/2 mt-8 flex justify-center items-center rounded-2xl bg-muted gap-4">
+                <Spinner  />
+                <p className="line-clamp-1">Loading Transcript...</p>
+              </div>
+            )}
+            {error && (
+              <Alert variant="destructive" className="mt-8 mx-4 max-w-max">
+                <AlertCircleIcon />
+                <AlertTitle>Error loading transcript: {error}</AlertTitle>
+              </Alert>
+            )}
+          </div>
+
+          {/* Transcript - Scrollable Container */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+
             {!loading && (
               <Transcript
                 segments={transcript}
@@ -203,80 +246,38 @@ const VideoAnalysis = () => {
           </div>
         </div>
 
-        {/* Overlay - Confidence Score (fixed positioned on left, starts below video) */}
-        <div style={{
-          position: 'fixed',
-          left: '24px',
-          top: '24px',
-          width: '20%',
-          minWidth: '250px',
-          maxWidth: '350px',
-          height: 'auto',
-          overflow: 'y-auto',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 20,
-          padding: '16px',
-          paddingTop: '70px'
-        }}>
-          <div className="content-box flex flex-col p-6 mb-6">
-            <p className="text-left font-bold mb-1">Confidence Score: {mockVideoData.confidenceScores}%</p>
-            <div className="progress-bar mb-4">
-              <div className="progress-fill" style={{ width: `${mockVideoData.confidenceScores}%` }}></div>
+        {/* Right Column - Source Cards */}
+        <div className="w-1/4 min-w-[250px] max-w-[350px] flex-shrink-0">
+          {showSources && selectedClaimIndex !== null && sources[selectedClaimIndex] ? (
+            <div className="relative mb-6 flex flex-col my-2">
+              <ConfidenceCard
+                index={selectedClaimIndex}
+                text={sources[selectedClaimIndex].claim}
+                confidence={Math.round(sources[selectedClaimIndex].ratingPercent)}
+                confidenceReason={sources[selectedClaimIndex].confidenceReason}
+              />
+              {sources[selectedClaimIndex].sources.map((source: any, srcIndex: number) => (
+                <SourceCard
+                  index={srcIndex}
+                  zIndex={sources[selectedClaimIndex].sources.length - srcIndex}
+                  key={srcIndex}
+                  title={source.title}
+                  url={source.url}
+                  ratingStance={source.ratingStance}
+                  snippet={source.snippet}
+                  datePosted={source.datePosted}
+                  claimReference={source.claimReference}
+                />
+              ))}
             </div>
-            <p className="text-left font-bold mb-1">Confidence Score Summary (Reasoning)</p>
-            <p className="text-left mb-6">{mockVideoData.reasoning}</p>
-          </div>
+          ) : (
+            <div className="content-box p-6 text-center">
+              <p className="text-gray-500 text-sm">
+                Click on a highlighted claim in the transcript to see sources
+              </p>
+            </div>
+          )}
         </div>
-
-        {/* Overlay - Source Cards (fixed positioned from right, floats beside transcript) */}
-        {showSources && (
-          <div style={{
-            position: 'fixed',
-            right: '24px',
-            top: '24px',
-            width: '20%',
-            minWidth: '250px',
-            maxWidth: '350px',
-            height: 'auto',
-            overflow: 'y-auto',
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: 20,
-            padding: '16px',
-            paddingTop: '100px'
-          }}>
-            {selectedClaimIndex !== null && sources[selectedClaimIndex] && (
-              <div className="mb-6">
-                <div className="relative flex flex-col my-2">
-                  <ConfidenceCard
-                    index={selectedClaimIndex}
-                    text={sources[selectedClaimIndex].claim}
-                    confidence={Math.round(sources[selectedClaimIndex].ratingPercent)}
-                    confidenceReason={sources[selectedClaimIndex].confidenceReason}
-                  />
-                  {sources[selectedClaimIndex].sources.map((source: any, srcIndex: number) => (
-                    <SourceCard
-                      index={srcIndex}
-                      zIndex={sources[selectedClaimIndex].sources.length - srcIndex}
-                      key={srcIndex}
-                      title={source.title}
-                      url={source.url}
-                      ratingStance={source.ratingStance}
-                      snippet={source.snippet}
-                      datePosted={source.datePosted}
-                      claimReference={source.claimReference}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {selectedClaimIndex === null && (
-              <p className="text-gray-500 text-center py-8">Click on a highlighted claim to see sources</p>
-            )}
-          </div>
-        )}
       </div>
     </>
   );
