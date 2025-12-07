@@ -55,26 +55,11 @@ export default function AnalysisPage() {
     }
   }, [params.id]);
 
-  const handleSelectAnalysis = (data: TextAnalysisResponse) => {
-    try {
-      const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
-      if (saved) {
-        const history: AnalysisHistoryItem[] = JSON.parse(saved);
-        const analysis = history.find(item =>
-          item.data.confidenceScores === data.confidenceScores &&
-          item.data.reasoning === data.reasoning
-        );
-
-        if (analysis) {
-          if (analysis.type === 'video') {
-            router.push(`/video-analysis/${analysis.id}`);
-          } else {
-            router.push(`/analysis/${analysis.id}`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error selecting analysis:", error);
+  const handleSelectAnalysis = (id: string, type: 'text' | 'video') => {
+    if (type === 'video') {
+      router.push(`/video-analysis/${id}`);
+    } else {
+      router.push(`/analysis/${id}`);
     }
   };
 
@@ -86,8 +71,8 @@ export default function AnalysisPage() {
     return (
       <SidebarProvider defaultOpen={true}>
         <HistorySidebar
-          onSelectAnalysis={handleSelectAnalysis}
-          onNewAnalysis={handleNewAnalysis}
+          onSelectAnalysisAction={handleSelectAnalysis}
+          onNewAnalysisAction={handleNewAnalysis}
         />
         <SidebarInset>
           <LoadingPage />
@@ -100,8 +85,8 @@ export default function AnalysisPage() {
     return (
       <SidebarProvider defaultOpen={true}>
         <HistorySidebar
-          onSelectAnalysis={handleSelectAnalysis}
-          onNewAnalysis={handleNewAnalysis}
+          onSelectAnalysisAction={handleSelectAnalysis}
+          onNewAnalysisAction={handleNewAnalysis}
         />
         <SidebarInset>
           <div className="flex items-center justify-center h-screen">
@@ -126,8 +111,8 @@ export default function AnalysisPage() {
   return (
     <SidebarProvider defaultOpen={true}>
       <HistorySidebar
-        onSelectAnalysis={handleSelectAnalysis}
-        onNewAnalysis={handleNewAnalysis}
+        onSelectAnalysisAction={handleSelectAnalysis}
+        onNewAnalysisAction={handleNewAnalysis}
       />
       <SidebarInset>
         <div className="flex items-center gap-2 p-3 border-b">

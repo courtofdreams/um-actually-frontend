@@ -2,7 +2,7 @@ import VideoPlayer from "./VideoPlayer";
 import Transcript from "./Transcript";
 import SourceCard from "./SourceCard";
 import ConfidenceCard from "./ConfidenceCard";
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { AppContext } from "@/contexts/AppContext";
 import { fetchYoutubeTranscript } from "@/services/youtubeTranscript";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -12,7 +12,7 @@ import { ProgressiveBar } from "@/components/ui/progressive-bar";
 import { AlertCircleIcon } from "lucide-react";
 import { saveToHistory } from "./HistorySidebar";
 import { useRouter } from "next/navigation";
-import { TextAnalysisResponse } from "@/hooks/anaysis";
+import { TextAnalysisResponse, SourceGroup } from "@/hooks/anaysis";
 
 interface TranscriptSegment {
   id: string;
@@ -43,8 +43,8 @@ const mockVideoData = {
       confidenceReason: "Backed by NASA, NOAA, and IPCC data. Multiple independent measurements confirm this trend.",
       ratingPercent: 95,
       sources: [
-        { title: "NASA", claimReference: "[1] Earth Temperature Rise", url: "https://climate.nasa.gov", ratingStance: "Mostly Support", snippet: "NASA satellite data shows Earth's average temperature has risen about 1.1°C since pre-industrial times, with most warming occurring in the past 50 years.", datePosted: "October 2024" },
-        { title: "NOAA", url: "https://www.noaa.gov", ratingStance: "Mostly Support", snippet: "NOAA's Global Monitoring Laboratory confirms consistent warming trends across multiple temperature datasets.", datePosted: "September 2024" }
+        { title: "NASA", claimReference: "[1] Earth Temperature Rise", url: "https://climate.nasa.gov", ratingStance: "Mostly Support" as const, snippet: "NASA satellite data shows Earth's average temperature has risen about 1.1°C since pre-industrial times, with most warming occurring in the past 50 years.", datePosted: "October 2024" },
+        { title: "NOAA", url: "https://www.noaa.gov", ratingStance: "Mostly Support" as const, snippet: "NOAA's Global Monitoring Laboratory confirms consistent warming trends across multiple temperature datasets.", datePosted: "September 2024" }
       ]
     },
     {
@@ -52,8 +52,8 @@ const mockVideoData = {
       confidenceReason: "Overwhelming scientific consensus (97%+) supports anthropogenic climate change. Detailed in IPCC reports.",
       ratingPercent: 97,
       sources: [
-        { title: "IPCC", url: "https://www.ipcc.ch", ratingStance: "Mostly Support", snippet: "The IPCC Sixth Assessment Report confirms that human influence on the climate system is unequivocal.", datePosted: "August 2023" },
-        { title: "Scientific American", url: "https://scientificamerican.com", ratingStance: "Mostly Support", snippet: "97% of climate scientists agree that climate change is real and caused primarily by human activities.", datePosted: "March 2024" }
+        { title: "IPCC", url: "https://www.ipcc.ch", ratingStance: "Mostly Support" as const, snippet: "The IPCC Sixth Assessment Report confirms that human influence on the climate system is unequivocal.", datePosted: "August 2023" },
+        { title: "Scientific American", url: "https://scientificamerican.com", ratingStance: "Mostly Support" as const, snippet: "97% of climate scientists agree that climate change is real and caused primarily by human activities.", datePosted: "March 2024" }
       ]
     },
     {
@@ -61,8 +61,8 @@ const mockVideoData = {
       confidenceReason: "Satellite data shows 13% per decade loss. This is the highest rate in recorded history.",
       ratingPercent: 92,
       sources: [
-        { title: "National Snow and Ice Data Center", url: "https://nsidc.org", ratingStance: "Mostly Support", snippet: "Arctic sea ice extent has declined at a rate of about 13% per decade over the satellite record.", datePosted: "July 2024" },
-        { title: "Nature Climate Change", url: "https://nature.com", ratingStance: "Mostly Support", snippet: "Recent studies confirm accelerating Arctic ice loss with significant implications for global weather patterns.", datePosted: "May 2024" }
+        { title: "National Snow and Ice Data Center", url: "https://nsidc.org", ratingStance: "Mostly Support" as const, snippet: "Arctic sea ice extent has declined at a rate of about 13% per decade over the satellite record.", datePosted: "July 2024" },
+        { title: "Nature Climate Change", url: "https://nature.com", ratingStance: "Mostly Support" as const, snippet: "Recent studies confirm accelerating Arctic ice loss with significant implications for global weather patterns.", datePosted: "May 2024" }
       ]
     },
     {
@@ -70,8 +70,8 @@ const mockVideoData = {
       confidenceReason: "Tide gauge and satellite data consistently show this rise. Rate of rise is accelerating.",
       ratingPercent: 94,
       sources: [
-        { title: "USGS", url: "https://usgs.gov", ratingStance: "Mostly Support", snippet: "Global mean sea level has risen about 8-9 inches since 1880, with the rate of rise increasing in recent decades.", datePosted: "June 2024" },
-        { title: "Scripps Institution", url: "https://scripps.ucsd.edu", ratingStance: "Mostly Support", snippet: "Combined satellite and tide gauge data confirm sea level rise of approximately 3.4mm per year.", datePosted: "April 2024" }
+        { title: "USGS", url: "https://usgs.gov", ratingStance: "Mostly Support" as const, snippet: "Global mean sea level has risen about 8-9 inches since 1880, with the rate of rise increasing in recent decades.", datePosted: "June 2024" },
+        { title: "Scripps Institution", url: "https://scripps.ucsd.edu", ratingStance: "Mostly Support" as const, snippet: "Combined satellite and tide gauge data confirm sea level rise of approximately 3.4mm per year.", datePosted: "April 2024" }
       ]
     }
   ]
@@ -80,26 +80,34 @@ const mockVideoData = {
 // Helper function to generate dummy source cards from claims
 const generateSourcesForClaim = (claim: string, claimIndex: number) => {
   const sourceNames = ["BBC News", "Reuters", "Associated Press", "NPR", "The Guardian", "CNN", "TechCrunch", "Wired"];
-  const stances = ["Mostly Support", "Partial Support", "Oppose", "No Relationship"];
+  const stances: Array<"Mostly Support" | "Partially Support" | "Opposite"> = ["Mostly Support", "Partially Support", "Opposite"];
+
+  // Use deterministic values based on claimIndex to avoid hydration mismatch
+  const sourceIndex1 = claimIndex % sourceNames.length;
+  const sourceIndex2 = (claimIndex + 3) % sourceNames.length;
+  const stanceIndex1 = claimIndex % stances.length;
+  const stanceIndex2 = (claimIndex + 1) % stances.length;
+  const ratingPercent = 75 + (claimIndex * 5) % 20; // 75-95% deterministic
 
   return {
     claim: `[${claimIndex + 1}] ${claim}`,
     confidenceReason: `This claim was analyzed and cross-referenced with multiple sources. The confidence level reflects the consistency across fact-checking sources.`,
-    ratingPercent: 70 + Math.random() * 25, // 70-95%
+    ratingPercent,
     sources: [
       {
-        title: sourceNames[Math.floor(Math.random() * sourceNames.length)],
-        url: "https://example.com/" + Math.random().toString(36).substring(7),
-        ratingStance: stances[Math.floor(Math.random() * stances.length)],
+        title: sourceNames[sourceIndex1],
+        claimReference: `[${claimIndex + 1}] ${claim.substring(0, 30)}...`,
+        url: `https://example.com/source-${claimIndex}-1`,
+        ratingStance: stances[stanceIndex1],
         snippet: `This source provides information related to: "${claim.substring(0, 50)}...". The article discusses relevant details and context.`,
-        datePosted: `${Math.floor(Math.random() * 12) + 1} month${Math.random() > 0.5 ? 's' : ''} ago`
+        datePosted: `${(claimIndex % 12) + 1} month${claimIndex % 2 === 0 ? 's' : ''} ago`
       },
       {
-        title: sourceNames[Math.floor(Math.random() * sourceNames.length)],
-        url: "https://example.com/" + Math.random().toString(36).substring(7),
-        ratingStance: stances[Math.floor(Math.random() * stances.length)],
+        title: sourceNames[sourceIndex2],
+        url: `https://example.com/source-${claimIndex}-2`,
+        ratingStance: stances[stanceIndex2],
         snippet: `According to this source, ${claim.substring(0, 40).toLowerCase()}... is an important topic that has been discussed extensively.`,
-        datePosted: `${Math.floor(Math.random() * 12) + 1} month${Math.random() > 0.5 ? 's' : ''} ago`
+        datePosted: `${((claimIndex + 2) % 12) + 1} month${claimIndex % 2 === 1 ? 's' : ''} ago`
       }
     ]
   };
@@ -107,45 +115,67 @@ const generateSourcesForClaim = (claim: string, claimIndex: number) => {
 
 type VideoAnalysisProps = {
   loadedVideoUrl?: string | null;
+  loadedTranscript?: TranscriptSegment[] | null;
 };
 
-const VideoAnalysis = ({ loadedVideoUrl }: VideoAnalysisProps = {}) => {
+const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps = {}) => {
   const router = useRouter();
   const { userInput } = useContext(AppContext);
   const [currentTime, setCurrentTime] = useState(0);
   const [showSources, setShowSources] = useState(false);
   const [selectedClaimIndex, setSelectedClaimIndex] = useState<number | null>(null);
-  const [transcript, setTranscript] = useState<TranscriptSegment[]>(mockVideoData.transcript);
-  const [sources, setSources] = useState<any[]>(mockVideoData.sourcesList);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string>(loadedVideoUrl || userInput);
+  const transcriptScrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch real transcript when video URL changes
+  const videoUrl = loadedVideoUrl || userInput;
+
+  const initialTranscript = loadedTranscript && loadedTranscript.length > 0
+    ? loadedTranscript
+    : mockVideoData.transcript;
+
+  const initialSources = (() => {
+    if (loadedTranscript && loadedTranscript.length > 0) {
+      const claimsInTranscript = loadedTranscript.filter((seg) => seg.claim);
+      const generatedSources = claimsInTranscript.map((seg, index) =>
+        generateSourcesForClaim(seg.claim || "", index)
+      );
+      return generatedSources.length > 0 ? generatedSources : mockVideoData.sourcesList;
+    }
+    return mockVideoData.sourcesList;
+  })();
+
+  const [transcript, setTranscript] = useState<TranscriptSegment[]>(initialTranscript);
+  const [sources, setSources] = useState<SourceGroup[]>(initialSources);
+
   useEffect(() => {
     const urlToUse = loadedVideoUrl || userInput;
     if (!urlToUse) return;
 
-    setVideoUrl(urlToUse);
+    if (loadedTranscript && loadedTranscript.length > 0) {
+      console.log("Using cached transcript from localStorage:", loadedTranscript.length, "segments");
+      return;
+    }
 
     const loadTranscript = async () => {
       setLoading(true);
       setError(null);
+      console.log("Fetching transcript from API for:", urlToUse);
       const result = await fetchYoutubeTranscript(urlToUse);
 
-      let finalSources = mockVideoData.sourcesList;
-      let finalTranscript = mockVideoData.transcript;
+      let finalSources: SourceGroup[] = mockVideoData.sourcesList;
+      let finalTranscript: TranscriptSegment[];
 
       if (result.error) {
         setError(result.error);
-        // Fall back to mock data
         setTranscript(mockVideoData.transcript);
         setSources(mockVideoData.sourcesList);
+        finalTranscript = mockVideoData.transcript;
       } else if (result.segments && result.segments.length > 0) {
+        console.log("Received transcript with", result.segments.length, "segments");
         setTranscript(result.segments);
         finalTranscript = result.segments;
 
-        // Generate dummy sources for each claim in the transcript
         const claimsInTranscript = result.segments.filter((seg) => seg.claim);
         const generatedSources = claimsInTranscript.map((seg, index) =>
           generateSourcesForClaim(seg.claim || "", index)
@@ -153,29 +183,29 @@ const VideoAnalysis = ({ loadedVideoUrl }: VideoAnalysisProps = {}) => {
         setSources(generatedSources);
         finalSources = generatedSources;
       } else {
-        // Use mock data if no segments returned
         setTranscript(mockVideoData.transcript);
         setSources(mockVideoData.sourcesList);
+        finalTranscript = mockVideoData.transcript;
       }
       setLoading(false);
 
-      if (!loadedVideoUrl) {
-        const analysisData: TextAnalysisResponse = {
-          confidenceScores: mockVideoData.confidenceScores,
-          reasoning: mockVideoData.reasoning,
-          htmlContent: finalTranscript.map(s => s.text).join(' ') || 'Video transcript',
-          sourcesList: finalSources
-        };
+      const analysisData: TextAnalysisResponse = {
+        confidenceScores: mockVideoData.confidenceScores,
+        reasoning: mockVideoData.reasoning,
+        htmlContent: finalTranscript.map(s => s.text).join(' ') || 'Video transcript',
+        sourcesList: finalSources
+      };
 
-        const analysisId = saveToHistory(analysisData, 'video', urlToUse);
-        if (analysisId) {
-          router.push(`/video-analysis/${analysisId}`);
-        }
+      console.log("Saving transcript to history:", finalTranscript.length, "segments");
+      const analysisId = saveToHistory(analysisData, 'video', urlToUse, finalTranscript);
+
+      if (!loadedVideoUrl && analysisId && !result.error) {
+        router.push(`/video-analysis/${analysisId}`);
       }
     };
 
     loadTranscript();
-  }, [loadedVideoUrl, userInput]);
+  }, [loadedVideoUrl, loadedTranscript, userInput, router]);
 
   const handleClaimClick = (claimIndex: number) => {
     setSelectedClaimIndex(claimIndex);
@@ -194,7 +224,7 @@ const VideoAnalysis = ({ loadedVideoUrl }: VideoAnalysisProps = {}) => {
       </div>
 
       {/* Three column layout: Confidence | Video+Transcript | Sources */}
-      <div className="flex flex-row gap-4 p-6 h-[calc(100vh-60px)]">
+      <div className="flex flex-row gap-4 px-6 h-[calc(100vh-53px)]">
         {/* Left Column - Confidence Score */}
         <div className="w-1/4 min-w-[250px] max-w-[350px] flex-shrink-0">
           <div className="content-box flex flex-col p-6 h-full">
@@ -215,9 +245,9 @@ const VideoAnalysis = ({ loadedVideoUrl }: VideoAnalysisProps = {}) => {
         </div>
 
         {/* Center Column - Video Player + Transcript */}
-        <div className='flex-grow'>
-          <div className="flex flex-col justify-center items-center">
-            <VideoPlayer videoUrl={videoUrl} onTimeUpdate={handleTimeUpdate} />
+        <div className='flex-grow flex flex-col h-full overflow-hidden'>
+          <div className="flex flex-col justify-center items-center flex-shrink-0">
+            <VideoPlayer key={videoUrl} videoUrl={videoUrl} onTimeUpdate={handleTimeUpdate} />
 
             {loading && (
               <div className="h-12 w-1/2 mt-8 flex justify-center items-center rounded-2xl bg-muted gap-4">
@@ -225,22 +255,22 @@ const VideoAnalysis = ({ loadedVideoUrl }: VideoAnalysisProps = {}) => {
                 <p className="line-clamp-1">Loading Transcript...</p>
               </div>
             )}
-            {error && (
-              <Alert variant="destructive" className="mt-8 mx-4 max-w-max">
-                <AlertCircleIcon />
-                <AlertTitle>Error loading transcript: {error}</AlertTitle>
-              </Alert>
-            )}
           </div>
 
-          {/* Transcript - Scrollable Container */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-
+          {/* Error message */}
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircleIcon />
+              <AlertTitle>Error loading transcript: {error}</AlertTitle>
+            </Alert>
+          )}
+          <div className="flex-1 overflow-y-auto mt-4" ref={transcriptScrollRef}>
             {!loading && (
               <Transcript
                 segments={transcript}
                 currentTime={currentTime}
                 onClaimClick={handleClaimClick}
+                scrollContainerRef={transcriptScrollRef}
               />
             )}
           </div>

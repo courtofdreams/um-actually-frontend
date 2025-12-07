@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { TextAnalysisResponse } from "@/hooks/anaysis";
 import { FileTextIcon, TrashIcon, PlusIcon, FilePlayIcon } from "lucide-react";
 import { DesignMark } from "@/components/assets/DesignMark";
+import { useRouter } from "next/navigation";
 
 const HISTORY_STORAGE_KEY = 'analysisHistory';
 
@@ -27,6 +28,14 @@ export type AnalysisHistoryItem = {
   data: TextAnalysisResponse;
   type?: 'text' | 'video';
   videoUrl?: string;
+  transcript?: Array<{
+    id: string;
+    text: string;
+    startTime: number;
+    endTime: number;
+    claim?: string;
+    claimIndex?: number;
+  }>;
 };
 
 function loadHistoryFromStorage(): AnalysisHistoryItem[] {
@@ -41,15 +50,19 @@ function loadHistoryFromStorage(): AnalysisHistoryItem[] {
   return [];
 }
 
-export function HistorySidebar({ onSelectAnalysis, onNewAnalysis }: {
-  onSelectAnalysis: (data: TextAnalysisResponse) => void;
-  onNewAnalysis: () => void;
+export function HistorySidebar({ onSelectAnalysisAction, onNewAnalysisAction }: {
+  onSelectAnalysisAction: (id: string, type: 'text' | 'video') => void;
+  onNewAnalysisAction: () => void;
 }) {
-  const [history, setHistory] = useState<AnalysisHistoryItem[]>(() => {
-    return loadHistoryFromStorage();
-  });
+  const router = useRouter();
+  const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
+    // only on client
+    setHistory(loadHistoryFromStorage());
+    setIsLoaded(true);
+
     const handleStorageChange = () => {
       setHistory(loadHistoryFromStorage());
     };
@@ -70,6 +83,7 @@ export function HistorySidebar({ onSelectAnalysis, onNewAnalysis }: {
       const updated = history.filter(item => item.id !== id);
       localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updated));
       setHistory(updated);
+      router.push('/');
     } catch (error) {
       console.error("Error deleting item:", error);
     }
@@ -95,6 +109,10 @@ export function HistorySidebar({ onSelectAnalysis, onNewAnalysis }: {
     });
   };
 
+  if (!isLoaded) {
+    return null; // or a loading spinner
+  }
+
   return (
     <Sidebar>
       <SidebarHeader className="border-b">
@@ -108,7 +126,7 @@ export function HistorySidebar({ onSelectAnalysis, onNewAnalysis }: {
 
           <SidebarMenuItem key={'new-entry'} className={'p-2'}>
             <SidebarMenuButton className={""} asChild>
-              <a onClick={onNewAnalysis} className={"cursor-pointer"}>
+              <a onClick={onNewAnalysisAction} className={"cursor-pointer"}>
                 <PlusIcon />
                 <span>Start New Analysis</span>
               </a>
@@ -128,7 +146,7 @@ export function HistorySidebar({ onSelectAnalysis, onNewAnalysis }: {
                 history.map((item) => (
                   <SidebarMenuItem key={item.id} className="">
                     <SidebarMenuButton
-                      onClick={() => onSelectAnalysis(item.data)}
+                      onClick={() => onSelectAnalysisAction(item.id, item.type || 'text')}
                       className="h-10 pr-8"
                     >
                       {item.type === 'video' ?
@@ -166,7 +184,12 @@ export function HistorySidebar({ onSelectAnalysis, onNewAnalysis }: {
   );
 }
 
-export function saveToHistory(data: TextAnalysisResponse, type: 'text' | 'video' = 'text', videoUrl?: string): string | null {
+export function saveToHistory(
+  data: TextAnalysisResponse,
+  type: 'text' | 'video' = 'text',
+  videoUrl?: string,
+  transcript?: AnalysisHistoryItem['transcript']
+): string | null {
   try {
     const history = localStorage.getItem(HISTORY_STORAGE_KEY);
     const historyArray: AnalysisHistoryItem[] = history ? JSON.parse(history) : [];
@@ -177,15 +200,22 @@ export function saveToHistory(data: TextAnalysisResponse, type: 'text' | 'video'
       .substring(0, 80)
       .trim() + (data.htmlContent.length > 80 ? '...' : '');
 
-    // Check if this analysis already exists in history (compare by preview and confidence score)
-    const existingAnalysis = historyArray.find(item =>
-      item.preview === preview &&
-      item.data.confidenceScores === data.confidenceScores &&
-      item.data.reasoning === data.reasoning &&
-      item.type === type
+    const existingIndex = historyArray.findIndex(item =>
+      type === 'video'
+        ? item.videoUrl === videoUrl && item.type === 'video'
+        : item.preview === preview &&
+          item.data.confidenceScores === data.confidenceScores &&
+          item.data.reasoning === data.reasoning &&
+          item.type === type
     );
 
-    if (existingAnalysis) {
+    if (existingIndex !== -1) {
+      const existingAnalysis = historyArray[existingIndex];
+      if (transcript && !existingAnalysis.transcript) {
+        existingAnalysis.transcript = transcript;
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(historyArray));
+        window.dispatchEvent(new Event('historyUpdated'));
+      }
       console.log("Analysis already exists in history, returning existing ID");
       return existingAnalysis.id;
     }
@@ -196,8 +226,11 @@ export function saveToHistory(data: TextAnalysisResponse, type: 'text' | 'video'
       preview,
       data,
       type,
-      ...(videoUrl && { videoUrl })
+      ...(videoUrl && { videoUrl }),
+      ...(transcript && transcript.length > 0 && { transcript })
     };
+
+    console.log("Saving new item with transcript:", !!transcript, transcript?.length);
 
     historyArray.unshift(newItem);
 

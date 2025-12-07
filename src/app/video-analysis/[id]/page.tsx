@@ -17,16 +17,34 @@ type AnalysisHistoryItem = {
   data: TextAnalysisResponse;
   type?: 'text' | 'video';
   videoUrl?: string;
+  transcript?: Array<{
+    id: string;
+    text: string;
+    startTime: number;
+    endTime: number;
+    claim?: string;
+    claimIndex?: number;
+  }>;
 };
 
 export default function VideoAnalysisPage() {
   const params = useParams();
   const router = useRouter();
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<AnalysisHistoryItem['transcript'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [currentId, setCurrentId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (params.id !== currentId) {
+      setVideoUrl(null);
+      setTranscript(null);
+      setIsLoading(true);
+      setNotFound(false);
+      setCurrentId(params.id as string);
+    }
+
     const loadAnalysis = () => {
       try {
         const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -36,6 +54,8 @@ export default function VideoAnalysisPage() {
 
           if (analysis && analysis.type === 'video' && analysis.videoUrl) {
             setVideoUrl(analysis.videoUrl);
+            setTranscript(analysis.transcript || null);
+            setNotFound(false);
           } else {
             setNotFound(true);
           }
@@ -53,29 +73,13 @@ export default function VideoAnalysisPage() {
     if (params.id) {
       loadAnalysis();
     }
-  }, [params.id]);
+  }, [params.id, currentId]);
 
-  const handleSelectAnalysis = (data: TextAnalysisResponse) => {
-    // Find the ID of the selected analysis and navigate to its URL
-    try {
-      const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
-      if (saved) {
-        const history: AnalysisHistoryItem[] = JSON.parse(saved);
-        const analysis = history.find(item =>
-          item.data.confidenceScores === data.confidenceScores &&
-          item.data.reasoning === data.reasoning
-        );
-
-        if (analysis) {
-          if (analysis.type === 'video') {
-            router.push(`/video-analysis/${analysis.id}`);
-          } else {
-            router.push(`/analysis/${analysis.id}`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error selecting analysis:", error);
+  const handleSelectAnalysis = (id: string, type: 'text' | 'video') => {
+    if (type === 'video') {
+      router.push(`/video-analysis/${id}`);
+    } else {
+      router.push(`/analysis/${id}`);
     }
   };
 
@@ -87,8 +91,8 @@ export default function VideoAnalysisPage() {
     return (
       <SidebarProvider defaultOpen={true}>
         <HistorySidebar
-          onSelectAnalysis={handleSelectAnalysis}
-          onNewAnalysis={handleNewAnalysis}
+          onSelectAnalysisAction={handleSelectAnalysis}
+          onNewAnalysisAction={handleNewAnalysis}
         />
         <SidebarInset>
           <LoadingPage />
@@ -101,8 +105,8 @@ export default function VideoAnalysisPage() {
     return (
       <SidebarProvider defaultOpen={true}>
         <HistorySidebar
-          onSelectAnalysis={handleSelectAnalysis}
-          onNewAnalysis={handleNewAnalysis}
+          onSelectAnalysisAction={handleSelectAnalysis}
+          onNewAnalysisAction={handleNewAnalysis}
         />
         <SidebarInset>
           <div className="flex items-center justify-center h-screen">
@@ -127,11 +131,11 @@ export default function VideoAnalysisPage() {
   return (
     <SidebarProvider defaultOpen={true}>
       <HistorySidebar
-        onSelectAnalysis={handleSelectAnalysis}
-        onNewAnalysis={handleNewAnalysis}
+        onSelectAnalysisAction={handleSelectAnalysis}
+        onNewAnalysisAction={handleNewAnalysis}
       />
       <SidebarInset>
-        <VideoAnalysis loadedVideoUrl={videoUrl} />
+        <VideoAnalysis key={params.id as string} loadedVideoUrl={videoUrl} loadedTranscript={transcript} />
       </SidebarInset>
     </SidebarProvider>
   );

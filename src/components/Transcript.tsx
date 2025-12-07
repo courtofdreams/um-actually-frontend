@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, RefObject } from 'react';
 
 interface TranscriptSegment {
   id: string;
@@ -13,13 +13,27 @@ interface TranscriptProps {
   segments: TranscriptSegment[];
   currentTime: number;
   onClaimClick: (claimIndex: number) => void;
+  scrollContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
-const Transcript = ({ segments, currentTime, onClaimClick }: TranscriptProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+const formatTime = (seconds: number): string => {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+
+const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }: TranscriptProps) => {
+  const internalContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastScrollTimeRef = useRef<number>(0);
+  const lastScrolledIndexRef = useRef<number>(-1);
+  const isUserScrollingRef = useRef(false);
 
   // Find current segment based on video time
   const getCurrentSegmentIndex = () => {
@@ -30,56 +44,96 @@ const Transcript = ({ segments, currentTime, onClaimClick }: TranscriptProps) =>
 
   const currentSegmentIndex = getCurrentSegmentIndex();
 
-  // Handle manual scroll - disable auto-scroll for 5 seconds
-  const handleScroll = () => {
-    setAutoScroll(false);
-    lastScrollTimeRef.current = Date.now();
+  // Scroll to segment function
+  const scrollToSegment = (index: number) => {
+    if (!scrollContainerRef?.current || index < 0) return;
 
-    // Clear existing timeout
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
+    const currentElement = document.querySelector(
+      `[data-segment-id="${segments[index].id}"]`
+    );
+
+    if (currentElement) {
+      const container = scrollContainerRef.current;
+      const elementTop = (currentElement as HTMLElement).offsetTop - container.offsetTop;
+
+      container.scrollTo({
+        top: elementTop,
+        behavior: 'smooth',
+      });
+      lastScrolledIndexRef.current = index;
     }
-
-    // Re-enable auto-scroll after 5 seconds of no scroll
-    scrollTimeoutRef.current = setTimeout(() => {
-      setAutoScroll(true);
-    }, 5000);
   };
 
-  // Auto-scroll to current segment when autoScroll is enabled
+  // Auto-scroll to current segment when it changes
   useEffect(() => {
-    if (autoScroll && currentSegmentIndex >= 0 && containerRef.current) {
-      const currentElement = containerRef.current.querySelector(
-        `[data-segment-id="${segments[currentSegmentIndex].id}"]`
-      );
+    if (!autoScroll || isUserScrollingRef.current) return;
 
-      if (currentElement) {
-        currentElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      }
+    // Only scroll if segment changed or we haven't scrolled to this segment yet
+    if (currentSegmentIndex >= 0 && currentSegmentIndex !== lastScrolledIndexRef.current) {
+      requestAnimationFrame(() => {
+        scrollToSegment(currentSegmentIndex);
+      });
     }
   }, [currentSegmentIndex, autoScroll, segments]);
 
-  // Cleanup timeout on unmount
+  // Initial scroll on mount
   useEffect(() => {
-    return () => {
+    if (currentSegmentIndex >= 0 && autoScroll) {
+      const timer = setTimeout(() => {
+        scrollToSegment(currentSegmentIndex);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Handle scroll events on the container to detect manual scrolling
+  useEffect(() => {
+    const container = scrollContainerRef?.current;
+    if (!container) return;
+
+    const handleScrollStart = () => {
+      isUserScrollingRef.current = true;
+      setAutoScroll(false);
+
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, []);
+
+    const handleScrollEnd = () => {
+      scrollTimeoutRef.current = setTimeout(() => {
+        isUserScrollingRef.current = false;
+        setAutoScroll(true);
+        lastScrolledIndexRef.current = -1;
+      }, 3000);
+    };
+
+    const handleWheel = () => {
+      handleScrollStart();
+      handleScrollEnd();
+    };
+
+    const handleTouchMove = () => {
+      handleScrollStart();
+      handleScrollEnd();
+    };
+
+    container.addEventListener('wheel', handleWheel);
+    container.addEventListener('touchmove', handleTouchMove);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('touchmove', handleTouchMove);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [scrollContainerRef]);
 
   return (
     <div
-      ref={containerRef}
-      onScroll={handleScroll}
-      className="flex flex-col gap-3 py-4 overflow-y-auto rounded-lg bg-white"
-      style={{
-        flex: 1,
-        width: '100%',
-      }}
+      ref={internalContainerRef}
+      className="flex flex-col gap-3 py-4 rounded-lg w-full bg-white"
     >
       {segments.map((segment, index) => {
         const isCurrentSegment = index === currentSegmentIndex;
@@ -94,8 +148,8 @@ const Transcript = ({ segments, currentTime, onClaimClick }: TranscriptProps) =>
                 : 'bg-gray-50 border-l-4 border-gray-300'
             }`}
           >
-            <p className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0 pt-0.5">
-              {Math.floor(segment.startTime)}s - {Math.floor(segment.endTime)}s
+            <p className="text-sm font-mono text-gray-600 whitespace-nowrap flex-shrink-0 pt-0.5">
+              {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
             </p>
 
             <p className="text-gray-800 flex-grow">

@@ -10,44 +10,17 @@ import { HistorySidebar } from "@/components/HistorySidebar";
 import { TextAnalysisResponse } from "@/hooks/anaysis";
 import { useRouter } from "next/navigation";
 
-const HISTORY_STORAGE_KEY = 'analysisHistory';
-
-type AnalysisHistoryItem = {
-  id: string;
-  timestamp: number;
-  preview: string;
-  data: TextAnalysisResponse;
-  type?: 'text' | 'video';
-  videoUrl?: string;
-};
-
 export default function App() {
   const router = useRouter();
   const [userInput, setUserInput] = useState("");
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.MAIN);
   const [loadedAnalysisData, setLoadedAnalysisData] = useState<TextAnalysisResponse | null>(null);
 
-  const handleSelectAnalysis = (data: TextAnalysisResponse) => {
-    // find ID and nav
-    try {
-      const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
-      if (saved) {
-        const history: AnalysisHistoryItem[] = JSON.parse(saved);
-        const analysis = history.find(item =>
-          item.data.confidenceScores === data.confidenceScores &&
-          item.data.reasoning === data.reasoning
-        );
-
-        if (analysis) {
-          if (analysis.type === 'video') {
-            router.push(`/video-analysis/${analysis.id}`);
-          } else {
-            router.push(`/analysis/${analysis.id}`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error selecting analysis:", error);
+  const handleSelectAnalysis = (id: string, type: 'text' | 'video') => {
+    if (type === 'video') {
+      router.push(`/video-analysis/${id}`);
+    } else {
+      router.push(`/analysis/${id}`);
     }
   };
 
@@ -73,8 +46,8 @@ export default function App() {
   return (
     <SidebarProvider defaultOpen={true}>
       <HistorySidebar
-        onSelectAnalysis={handleSelectAnalysis}
-        onNewAnalysis={handleNewAnalysis}
+        onSelectAnalysisAction={handleSelectAnalysis}
+        onNewAnalysisAction={handleNewAnalysis}
       />
       <SidebarInset>
         <AppContext.Provider value={{ userInput, currentScreen, setUserInput, setCurrentScreen }}>
