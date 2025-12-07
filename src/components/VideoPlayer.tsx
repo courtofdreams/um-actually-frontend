@@ -5,12 +5,10 @@ interface VideoPlayerProps {
   onTimeUpdate: (currentTime: number) => void;
 }
 
-const VideoPlayer = ({ videoUrl, /*onTimeUpdate*/ }: VideoPlayerProps) => {
+const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
   const iframeRef = useRef<HTMLDivElement>(null);
-  // const [isPlaying, setIsPlaying] = useState(false);
-  // const [currentTime, setCurrentTime] = useState(0);
-  // const [duration, setDuration] = useState(0);
   const playerRef = useRef<any>(null);
+  const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Extract YouTube video ID from URL
   const getYoutubeId = (url: string): string => {
@@ -29,16 +27,25 @@ const VideoPlayer = ({ videoUrl, /*onTimeUpdate*/ }: VideoPlayerProps) => {
       document.body.appendChild(tag);
     }
 
+    const onPlayerReady = () => {
+      // Start updating time every 100ms
+      timeUpdateIntervalRef.current = setInterval(() => {
+        if (playerRef.current && playerRef.current.getCurrentTime) {
+          const time = playerRef.current.getCurrentTime();
+          onTimeUpdate(time);
+        }
+      }, 100);
+    };
+
     const initPlayer = () => {
       if (iframeRef.current && videoId) {
         playerRef.current = new (window as any).YT.Player(iframeRef.current, {
           height: '100%',
           width: '100%',
           videoId: videoId,
-          // events: {
-          //   onReady: onPlayerReady,
-          //   onStateChange: onPlayerStateChange,
-          // },
+          events: {
+            onReady: onPlayerReady,
+          },
         });
       }
     };
@@ -50,11 +57,16 @@ const VideoPlayer = ({ videoUrl, /*onTimeUpdate*/ }: VideoPlayerProps) => {
     }
 
     return () => {
+      // Clean up interval
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+      // Clean up player
       if (playerRef.current) {
         playerRef.current.destroy();
       }
     };
-  }, [videoId]);
+  }, [videoId, onTimeUpdate]);
 
   // TODO: Is this needed?
 /*

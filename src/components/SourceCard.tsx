@@ -16,12 +16,13 @@ type SourceCardProps = {
 };
 
 const stanceMapping: Record<string, Stance> = {
-    "Partial Support": "partial",
-    "Mostly Support": "mostly",
-    "Oppose": "opposite",
+    "partial support": "partial",
+    "partially support": "partial",
+    "mostly support": "mostly",
+    "oppose": "opposite",
+    "opposite": "opposite",
     "mostly": "mostly",
     "partial": "partial",
-    "opposite": "opposite",
 };
 
 const logoMapping: Record<string, string> = {
@@ -35,6 +36,7 @@ const logoMapping: Record<string, string> = {
 const SourceCard = ({ claimReference, title, url, ratingStance, snippet, datePosted, index }: SourceCardProps) => {
 
     const openLink = () => {
+        console.log("Opening URL:", url);
         window.open(url, "_blank");
     };
 

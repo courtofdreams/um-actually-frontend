@@ -2,9 +2,10 @@ import VideoPlayer from "./VideoPlayer";
 import Transcript from "./Transcript";
 import SourceCard from "./SourceCard";
 import ConfidenceCard from "./ConfidenceCard";
-import { useContext, useState, useEffect, useRef } from "react";
+import { useContext, useState, useEffect, useRef, useCallback } from "react";
 import { AppContext } from "@/contexts/AppContext";
 import { fetchYoutubeTranscript } from "@/services/youtubeTranscript";
+import { analyzeVideoTranscript } from "@/services/videoAnalysis";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -116,9 +117,10 @@ const generateSourcesForClaim = (claim: string, claimIndex: number) => {
 type VideoAnalysisProps = {
   loadedVideoUrl?: string | null;
   loadedTranscript?: TranscriptSegment[] | null;
+  loadedSources?: SourceGroup[] | null;
 };
 
-const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps = {}) => {
+const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: VideoAnalysisProps = {}) => {
   const router = useRouter();
   const { userInput } = useContext(AppContext);
   const [currentTime, setCurrentTime] = useState(0);
@@ -127,6 +129,8 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
+  const [confidenceScore, setConfidenceScore] = useState(mockVideoData.confidenceScores);
+  const [reasoning, setReasoning] = useState(mockVideoData.reasoning);
 
   const videoUrl = loadedVideoUrl || userInput;
 
@@ -135,6 +139,12 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
     : mockVideoData.transcript;
 
   const initialSources = (() => {
+    // If we have loaded sources from localStorage, use them directly (they contain real OpenAI data)
+    if (loadedSources && loadedSources.length > 0) {
+      console.log("Using loaded sources from localStorage:", loadedSources.length, "source groups");
+      return loadedSources;
+    }
+    // Otherwise, if we have a loaded transcript without sources, generate dummy ones
     if (loadedTranscript && loadedTranscript.length > 0) {
       const claimsInTranscript = loadedTranscript.filter((seg) => seg.claim);
       const generatedSources = claimsInTranscript.map((seg, index) =>
@@ -148,12 +158,25 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
   const [transcript, setTranscript] = useState<TranscriptSegment[]>(initialTranscript);
   const [sources, setSources] = useState<SourceGroup[]>(initialSources);
 
+  // Debug: Log whenever sources state changes
+  useEffect(() => {
+    console.log("===== SOURCES STATE UPDATED =====");
+    console.log("Sources count:", sources.length);
+    if (sources.length > 0) {
+      console.log("First source:", sources[0]);
+      if (sources[0]?.sources?.[0]) {
+        console.log("First source URL:", sources[0].sources[0].url);
+      }
+    }
+    console.log("=================================");
+  }, [sources]);
+
   useEffect(() => {
     const urlToUse = loadedVideoUrl || userInput;
     if (!urlToUse) return;
 
-    if (loadedTranscript && loadedTranscript.length > 0) {
-      console.log("Using cached transcript from localStorage:", loadedTranscript.length, "segments");
+    if (loadedTranscript && loadedTranscript.length > 0 && loadedSources && loadedSources.length > 0) {
+      console.log("Using cached transcript and sources from localStorage:", loadedTranscript.length, "segments,", loadedSources.length, "source groups");
       return;
     }
 
@@ -173,15 +196,33 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
         finalTranscript = mockVideoData.transcript;
       } else if (result.segments && result.segments.length > 0) {
         console.log("Received transcript with", result.segments.length, "segments");
-        setTranscript(result.segments);
-        finalTranscript = result.segments;
 
-        const claimsInTranscript = result.segments.filter((seg) => seg.claim);
-        const generatedSources = claimsInTranscript.map((seg, index) =>
-          generateSourcesForClaim(seg.claim || "", index)
-        );
-        setSources(generatedSources);
-        finalSources = generatedSources;
+        // Call OpenAI to analyze transcript and identify claims
+        try {
+          console.log("Calling OpenAI to analyze video transcript...");
+          const analysisResult = await analyzeVideoTranscript(result.videoId, result.segments);
+
+          // Use OpenAI's analyzed segments (with real claims)
+          console.log("OpenAI analysis complete:", analysisResult.segments.length, "segments with", analysisResult.sourcesList.length, "claims");
+          console.log("First source from OpenAI:", analysisResult.sourcesList[0]);
+          console.log("About to call setSources with OpenAI data...");
+          setTranscript(analysisResult.segments);
+          setSources(analysisResult.sourcesList);
+          console.log("setSources called with", analysisResult.sourcesList.length, "source groups");
+          finalTranscript = analysisResult.segments;
+          finalSources = analysisResult.sourcesList;
+
+          // Update confidence scores from OpenAI
+          setConfidenceScore(analysisResult.confidenceScores);
+          setReasoning(analysisResult.reasoning);
+        } catch (error) {
+          console.error("OpenAI analysis failed, using raw transcript:", error);
+          setError("Failed to analyze transcript with AI. Showing raw transcript.");
+          setTranscript(result.segments);
+          finalTranscript = result.segments;
+          setSources([]);
+          finalSources = [];
+        }
       } else {
         setTranscript(mockVideoData.transcript);
         setSources(mockVideoData.sourcesList);
@@ -190,8 +231,8 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
       setLoading(false);
 
       const analysisData: TextAnalysisResponse = {
-        confidenceScores: mockVideoData.confidenceScores,
-        reasoning: mockVideoData.reasoning,
+        confidenceScores: result.error ? mockVideoData.confidenceScores : confidenceScore,
+        reasoning: result.error ? mockVideoData.reasoning : reasoning,
         htmlContent: finalTranscript.map(s => s.text).join(' ') || 'Video transcript',
         sourcesList: finalSources
       };
@@ -208,13 +249,25 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
   }, [loadedVideoUrl, loadedTranscript, userInput, router]);
 
   const handleClaimClick = (claimIndex: number) => {
+    console.log("===== CLAIM CLICKED DEBUG =====");
+    console.log("Claim index:", claimIndex);
+    console.log("Total sources in state:", sources.length);
+    console.log("Full sources state:", sources);
+    console.log("Selected claim data:", sources[claimIndex]);
+    if (sources[claimIndex]) {
+      console.log("Sources for this claim:", sources[claimIndex].sources);
+      sources[claimIndex].sources.forEach((src, idx) => {
+        console.log(`  Source ${idx} URL:`, src.url);
+      });
+    }
+    console.log("================================");
     setSelectedClaimIndex(claimIndex);
     setShowSources(true);
   };
 
-  const handleTimeUpdate = (time: number) => {
+  const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
-  };
+  }, []);
 
   return (
     <>
@@ -226,20 +279,20 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
       {/* Three column layout: Confidence | Video+Transcript | Sources */}
       <div className="flex flex-row gap-4 px-6 h-[calc(100vh-53px)]">
         {/* Left Column - Confidence Score */}
-        <div className="w-1/4 min-w-[250px] max-w-[350px] flex-shrink-0">
-          <div className="content-box flex flex-col p-6 h-full">
+        <div className="w-1/5 min-w-[160px] max-w-[200px] flex-shrink-0">
+          <div className="content-box flex flex-col p-4 h-full">
             <p className="text-left font-bold mb-1">
-              Confidence Score: {mockVideoData.confidenceScores}%
+              Confidence Score: {confidenceScore}%
             </p>
             <ProgressiveBar
               className="mb-4"
-              progress={mockVideoData.confidenceScores}
+              progress={confidenceScore}
             />
             <p className="text-left font-bold mb-1">
               Confidence Score Summary (Reasoning)
             </p>
             <p className="text-left text-sm">
-              {mockVideoData.reasoning}
+              {reasoning}
             </p>
           </div>
         </div>
@@ -279,7 +332,7 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript }: VideoAnalysisProps 
         {/* Right Column - Source Cards */}
         <div className="w-1/4 min-w-[250px] max-w-[350px] flex-shrink-0">
           {showSources && selectedClaimIndex !== null && sources[selectedClaimIndex] ? (
-            <div className="relative mb-6 flex flex-col my-2">
+            <div className="relative mb-6 flex flex-col mt-80">
               <ConfidenceCard
                 index={selectedClaimIndex}
                 text={sources[selectedClaimIndex].claim}

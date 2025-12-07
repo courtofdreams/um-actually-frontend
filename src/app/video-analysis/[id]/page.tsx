@@ -32,6 +32,7 @@ export default function VideoAnalysisPage() {
   const router = useRouter();
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<AnalysisHistoryItem['transcript'] | null>(null);
+  const [sources, setSources] = useState<TextAnalysisResponse['sourcesList'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -55,6 +56,8 @@ export default function VideoAnalysisPage() {
           if (analysis && analysis.type === 'video' && analysis.videoUrl) {
             setVideoUrl(analysis.videoUrl);
             setTranscript(analysis.transcript || null);
+            setSources(analysis.data?.sourcesList || null);
+            console.log("Loaded sources from localStorage:", analysis.data?.sourcesList);
             setNotFound(false);
           } else {
             setNotFound(true);
@@ -135,7 +138,7 @@ export default function VideoAnalysisPage() {
         onNewAnalysisAction={handleNewAnalysis}
       />
       <SidebarInset>
-        <VideoAnalysis key={params.id as string} loadedVideoUrl={videoUrl} loadedTranscript={transcript} />
+        <VideoAnalysis key={params.id as string} loadedVideoUrl={videoUrl} loadedTranscript={transcript} loadedSources={sources} />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -54,10 +54,17 @@ const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }:
 
     if (currentElement) {
       const container = scrollContainerRef.current;
-      const elementTop = (currentElement as HTMLElement).offsetTop - container.offsetTop;
+      const containerRect = container.getBoundingClientRect();
+      const elementRect = (currentElement as HTMLElement).getBoundingClientRect();
+
+      // Calculate the offset relative to the container's current scroll position
+      const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+
+      // Center the element in the container (optional, but makes it look better)
+      const offset = relativeTop - (containerRect.height / 4);
 
       container.scrollTo({
-        top: elementTop,
+        top: Math.max(0, offset),
         behavior: 'smooth',
       });
       lastScrolledIndexRef.current = index;
@@ -66,13 +73,27 @@ const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }:
 
   // Auto-scroll to current segment when it changes
   useEffect(() => {
-    if (!autoScroll || isUserScrollingRef.current) return;
+    console.log("Auto-scroll effect triggered:", {
+      autoScroll,
+      isUserScrolling: isUserScrollingRef.current,
+      currentSegmentIndex,
+      lastScrolledIndex: lastScrolledIndexRef.current,
+      hasScrollContainer: !!scrollContainerRef?.current
+    });
+
+    if (!autoScroll || isUserScrollingRef.current) {
+      console.log("Auto-scroll skipped: autoScroll =", autoScroll, "isUserScrolling =", isUserScrollingRef.current);
+      return;
+    }
 
     // Only scroll if segment changed or we haven't scrolled to this segment yet
     if (currentSegmentIndex >= 0 && currentSegmentIndex !== lastScrolledIndexRef.current) {
+      console.log("Scrolling to segment:", currentSegmentIndex);
       requestAnimationFrame(() => {
         scrollToSegment(currentSegmentIndex);
       });
+    } else {
+      console.log("Scroll skipped: currentSegmentIndex =", currentSegmentIndex, "lastScrolledIndex =", lastScrolledIndexRef.current);
     }
   }, [currentSegmentIndex, autoScroll, segments]);
 
@@ -153,19 +174,36 @@ const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }:
             </p>
 
             <p className="text-gray-800 flex-grow">
-              {segment.claim && segment.text.startsWith(segment.claim) ? (
+              {segment.claim && segment.text.includes(segment.claim) ? (
                 <>
-                  <span
-                    onClick={() => {
-                      if (segment.claimIndex !== undefined) {
-                        onClaimClick(segment.claimIndex);
-                      }
-                    }}
-                    className="bg-yellow-200 cursor-pointer hover:bg-yellow-300 transition-colors px-1 rounded font-semibold"
-                  >
-                    {segment.claim}
-                  </span>
-                  <span>{segment.text.substring(segment.claim.length)}</span>
+                  {(() => {
+                    const claimIndex = segment.text.indexOf(segment.claim);
+                    const beforeClaim = segment.text.substring(0, claimIndex);
+                    const afterClaim = segment.text.substring(claimIndex + segment.claim.length);
+
+                    return (
+                      <>
+                        {beforeClaim && <span>{beforeClaim}</span>}
+                        <span
+                          onClick={() => {
+                            console.log(">>> Claim span clicked! Segment:", segment.id);
+                            console.log(">>> Claim text:", segment.claim);
+                            console.log(">>> Claim index:", segment.claimIndex);
+                            if (segment.claimIndex !== undefined) {
+                              console.log(">>> Calling onClaimClick with index:", segment.claimIndex);
+                              onClaimClick(segment.claimIndex);
+                            } else {
+                              console.log(">>> ERROR: claimIndex is undefined, not calling onClaimClick");
+                            }
+                          }}
+                          className="bg-yellow-200 cursor-pointer hover:bg-yellow-300 transition-colors px-1 rounded font-semibold"
+                        >
+                          {segment.claim}
+                        </span>
+                        {afterClaim && <span>{afterClaim}</span>}
+                      </>
+                    );
+                  })()}
                 </>
               ) : (
                 segment.text
