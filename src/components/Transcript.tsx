@@ -14,6 +14,7 @@ interface TranscriptProps {
   currentTime: number;
   onClaimClick: (claimIndex: number) => void;
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
+  isPlaying?: boolean;
 }
 
 const formatTime = (seconds: number): string => {
@@ -28,7 +29,7 @@ const formatTime = (seconds: number): string => {
 };
 
 
-const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }: TranscriptProps) => {
+const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef, isPlaying = false }: TranscriptProps) => {
   const internalContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -73,29 +74,18 @@ const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }:
 
   // Auto-scroll to current segment when it changes
   useEffect(() => {
-    console.log("Auto-scroll effect triggered:", {
-      autoScroll,
-      isUserScrolling: isUserScrollingRef.current,
-      currentSegmentIndex,
-      lastScrolledIndex: lastScrolledIndexRef.current,
-      hasScrollContainer: !!scrollContainerRef?.current
-    });
-
-    if (!autoScroll || isUserScrollingRef.current) {
-      console.log("Auto-scroll skipped: autoScroll =", autoScroll, "isUserScrolling =", isUserScrollingRef.current);
+    // Only auto-scroll if video is playing
+    if (!autoScroll || isUserScrollingRef.current || !isPlaying) {
       return;
     }
 
     // Only scroll if segment changed or we haven't scrolled to this segment yet
     if (currentSegmentIndex >= 0 && currentSegmentIndex !== lastScrolledIndexRef.current) {
-      console.log("Scrolling to segment:", currentSegmentIndex);
       requestAnimationFrame(() => {
         scrollToSegment(currentSegmentIndex);
       });
-    } else {
-      console.log("Scroll skipped: currentSegmentIndex =", currentSegmentIndex, "lastScrolledIndex =", lastScrolledIndexRef.current);
     }
-  }, [currentSegmentIndex, autoScroll, segments]);
+  }, [currentSegmentIndex, autoScroll, segments, isPlaying]);
 
   // Initial scroll on mount
   useEffect(() => {
@@ -124,8 +114,10 @@ const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }:
     const handleScrollEnd = () => {
       scrollTimeoutRef.current = setTimeout(() => {
         isUserScrollingRef.current = false;
-        setAutoScroll(true);
-        lastScrolledIndexRef.current = -1;
+        if (isPlaying) {
+          setAutoScroll(true);
+          lastScrolledIndexRef.current = -1;
+        }
       }, 3000);
     };
 
@@ -149,7 +141,14 @@ const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef }:
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [scrollContainerRef]);
+  }, [scrollContainerRef, isPlaying]);
+
+  useEffect(() => {
+    if (isPlaying && !isUserScrollingRef.current) {
+      setAutoScroll(true);
+      lastScrolledIndexRef.current = -1;
+    }
+  }, [isPlaying]);
 
   return (
     <div
