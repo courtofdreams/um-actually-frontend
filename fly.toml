@@ -9,11 +9,12 @@ app = "um-actually-frontend"
 primary_region = "sjc"  # San Jose - choose closest to your users
 
 [build]
+  dockerfile = "Dockerfile"
   [build.args]
     NEXT_PUBLIC_BACKEND_API_URL = "https://um-actually-backend.fly.dev/api"
 
 [http_service]
-  internal_port = 8080
+  internal_port = 3000
   force_https = true
   auto_stop_machines = "suspend"  # Stop machines when not in use
   auto_start_machines = true
@@ -28,7 +29,7 @@ primary_region = "sjc"  # San Jose - choose closest to your users
 # HTTP service configuration
 [[services]]
   protocol = "tcp"
-  internal_port = 8080
+  internal_port = 3000
   processes = ["app"]
 
   [[services.ports]]
@@ -55,7 +56,7 @@ primary_region = "sjc"  # San Jose - choose closest to your users
     timeout = "2s"
     grace_period = "3s"
     method = "get"
-    path = "/health"
+    path = "/"
     protocol = "http"
 
 # [env]
