@@ -1,18 +1,30 @@
-import { useEffect, useRef, /*useState*/ } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface VideoPlayerProps {
   videoUrl: string;
   onTimeUpdate: (currentTime: number) => void;
+  onPlayingChange?: (isPlaying: boolean) => void;
 }
 
-const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
+const VideoPlayer = ({ videoUrl, onTimeUpdate, onPlayingChange }: VideoPlayerProps) => {
   const iframeRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+
+  // Keep refs updated
+  useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate;
+  }, [onTimeUpdate]);
+
+  useEffect(() => {
+    onPlayingChangeRef.current = onPlayingChange;
+  }, [onPlayingChange]);
 
   // Extract YouTube video ID from URL
   const getYoutubeId = (url: string): string => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : '';
   };
@@ -32,9 +44,14 @@ const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
       timeUpdateIntervalRef.current = setInterval(() => {
         if (playerRef.current && playerRef.current.getCurrentTime) {
           const time = playerRef.current.getCurrentTime();
-          onTimeUpdate(time);
+          onTimeUpdateRef.current(time);
         }
       }, 100);
+    };
+
+    const onPlayerStateChange = (event: any) => {
+      const isPlaying = event.data === (window as any).YT?.PlayerState?.PLAYING;
+      onPlayingChangeRef.current?.(isPlaying);
     };
 
     const initPlayer = () => {
@@ -45,6 +62,7 @@ const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
           videoId: videoId,
           events: {
             onReady: onPlayerReady,
+            onStateChange: onPlayerStateChange,
           },
         });
       }
@@ -66,46 +84,7 @@ const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
         playerRef.current.destroy();
       }
     };
-  }, [videoId, onTimeUpdate]);
-
-  // TODO: Is this needed?
-/*
-  const onPlayerReady = (event: any) => {
-    setDuration(event.target.getDuration());
-    // Start updating time
-    setInterval(() => {
-      if (playerRef.current) {
-        const time = playerRef.current.getCurrentTime();
-        setCurrentTime(time);
-        onTimeUpdate(time);
-      }
-    }, 100);
-  };
-
-  const onPlayerStateChange = (event: any) => {
-    const playState = event.data;
-    setIsPlaying(playState === (window as any).YT?.PlayerState?.PLAYING);
-  };
-
-  const togglePlayPause = () => {
-    if (playerRef.current) {
-      if (isPlaying) {
-        playerRef.current.pauseVideo();
-      } else {
-        playerRef.current.playVideo();
-      }
-    }
-  };
-
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
-    if (playerRef.current) {
-      playerRef.current.seekTo(newTime);
-      setCurrentTime(newTime);
-      onTimeUpdate(newTime);
-    }
-  };
-*/
+  }, [videoId]);
 
   return (
     <div className="flex flex-col w-full">

@@ -124,6 +124,7 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
   const router = useRouter();
   const { userInput } = useContext(AppContext);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [selectedClaimIndex, setSelectedClaimIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -269,6 +270,10 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
     setCurrentTime(time);
   }, []);
 
+  const handlePlayingChange = useCallback((playing: boolean) => {
+    setIsPlaying(playing);
+  }, []);
+
   return (
     <>
       {/* Top bar with sidebar trigger */}
@@ -276,32 +281,13 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
         <SidebarTrigger />
       </div>
 
-      {/* Three column layout: Confidence | Video+Transcript | Sources */}
+      {/* Two column layout: Video+Transcript | Confidence+Sources */}
       <div className="flex flex-row gap-4 px-6 h-[calc(100vh-53px)]">
-        {/* Left Column - Confidence Score */}
-        <div className="w-1/5 min-w-[160px] max-w-[200px] flex-shrink-0">
-          <div className="content-box flex flex-col p-4 h-full">
-            <p className="text-left font-bold mb-1">
-              Confidence Score: {confidenceScore}%
-            </p>
-            <ProgressiveBar
-              className="mb-4"
-              progress={confidenceScore}
-            />
-            <p className="text-left font-bold mb-1">
-              Confidence Score Summary (Reasoning)
-            </p>
-            <p className="text-left text-sm">
-              {reasoning}
-            </p>
-          </div>
-        </div>
 
-        {/* Center Column - Video Player + Transcript */}
+        {/* Left Column - Video Player + Transcript */}
         <div className='flex-grow flex flex-col h-full overflow-hidden'>
-          <div className="flex flex-col justify-center items-center flex-shrink-0">
-            <VideoPlayer key={videoUrl} videoUrl={videoUrl} onTimeUpdate={handleTimeUpdate} />
-
+          <div className="flex flex-col items-center">
+            <VideoPlayer key={videoUrl} videoUrl={videoUrl} onTimeUpdate={handleTimeUpdate} onPlayingChange={handlePlayingChange} />
             {loading && (
               <div className="h-12 w-1/2 mt-8 flex justify-center items-center rounded-2xl bg-muted gap-4">
                 <Spinner  />
@@ -324,42 +310,61 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
                 currentTime={currentTime}
                 onClaimClick={handleClaimClick}
                 scrollContainerRef={transcriptScrollRef}
+                isPlaying={isPlaying}
               />
             )}
           </div>
         </div>
 
-        {/* Right Column - Source Cards */}
-        <div className="w-1/4 min-w-[250px] max-w-[350px] flex-shrink-0">
-          {showSources && selectedClaimIndex !== null && sources[selectedClaimIndex] ? (
-            <div className="relative mb-6 flex flex-col mt-80">
-              <ConfidenceCard
-                index={selectedClaimIndex}
-                text={sources[selectedClaimIndex].claim}
-                confidence={Math.round(sources[selectedClaimIndex].ratingPercent)}
-                confidenceReason={sources[selectedClaimIndex].confidenceReason}
+        {/* Right Column - Confidence + Source Cards */}
+        <div className="w-1/3 min-w-[250px] max-w-[550px] flex-shrink-0">
+          <div className="flex flex-col gap-8 justify-between h-full">
+            <div className="content-box flex flex-col p-4">
+              <p className="text-left font-bold mb-1">
+                Confidence Score: {confidenceScore}%
+              </p>
+              <ProgressiveBar
+                  className="mb-4"
+                  progress={confidenceScore}
               />
-              {sources[selectedClaimIndex].sources.map((source: any, srcIndex: number) => (
-                <SourceCard
-                  index={srcIndex}
-                  zIndex={sources[selectedClaimIndex].sources.length - srcIndex}
-                  key={srcIndex}
-                  title={source.title}
-                  url={source.url}
-                  ratingStance={source.ratingStance}
-                  snippet={source.snippet}
-                  datePosted={source.datePosted}
-                  claimReference={source.claimReference}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="content-box p-6 text-center">
-              <p className="text-gray-500 text-sm">
-                Click on a highlighted claim in the transcript to see sources
+              <p className="text-left font-bold mb-1">
+                Confidence Score Summary (Reasoning)
+              </p>
+              <p className="text-left text-sm">
+                {reasoning}
               </p>
             </div>
-          )}
+
+            {showSources && selectedClaimIndex !== null && sources[selectedClaimIndex] ? (
+                <div className="relative mb-6 flex flex-col">
+                  <ConfidenceCard
+                      index={selectedClaimIndex}
+                      text={sources[selectedClaimIndex].claim}
+                      confidence={Math.round(sources[selectedClaimIndex].ratingPercent)}
+                      confidenceReason={sources[selectedClaimIndex].confidenceReason}
+                  />
+                  {sources[selectedClaimIndex].sources.map((source: any, srcIndex: number) => (
+                      <SourceCard
+                          index={srcIndex}
+                          zIndex={sources[selectedClaimIndex].sources.length - srcIndex}
+                          key={srcIndex}
+                          title={source.title}
+                          url={source.url}
+                          ratingStance={source.ratingStance}
+                          snippet={source.snippet}
+                          datePosted={source.datePosted}
+                          claimReference={source.claimReference}
+                      />
+                  ))}
+                </div>
+            ) : (
+                <div className="content-box p-6 text-center">
+                  <p className="text-gray-500 text-sm">
+                    Click on a highlighted claim in the transcript to see sources
+                  </p>
+                </div>
+            )}
+          </div>
         </div>
       </div>
     </>

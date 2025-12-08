@@ -110,7 +110,7 @@ export function HistorySidebar({ onSelectAnalysisAction, onNewAnalysisAction }: 
   };
 
   if (!isLoaded) {
-    return null; // or a loading spinner
+    return null;
   }
 
   return (
