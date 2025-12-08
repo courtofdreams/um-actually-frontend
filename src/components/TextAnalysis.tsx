@@ -98,7 +98,7 @@ const TextAnalysis = ({ loadedData, onDataLoaded }: TextAnalysisProps) => {
 
     return (
         <>
-            {isLoading ? <LoadingPage /> :
+            {isLoading ? <LoadingPage preview={userInput} /> :
                 isError ?
                     <div className="p-6">
                         <p className="text-red-500">An error occurred while fetching the analysis. Please try again later.</p>
