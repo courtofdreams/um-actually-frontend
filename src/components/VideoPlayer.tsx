@@ -1,22 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useRef } from 'react';
 
 interface VideoPlayerProps {
   videoUrl: string;
   onTimeUpdate: (currentTime: number) => void;
+  onPlayingChange?: (isPlaying: boolean) => void;
 }
 
-const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+const VideoPlayer = ({ videoUrl, onTimeUpdate, onPlayingChange }: VideoPlayerProps) => {
+  const iframeRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
+  const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+
+  // Keep refs updated
+  useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate;
+  }, [onTimeUpdate]);
+
+  useEffect(() => {
+    onPlayingChangeRef.current = onPlayingChange;
+  }, [onPlayingChange]);
 
   // Extract YouTube video ID from URL
   const getYoutubeId = (url: string): string => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : '';
   };
@@ -25,12 +33,29 @@ const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
 
   useEffect(() => {
     // Load YouTube IFrame API
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.body.appendChild(tag);
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.body.appendChild(tag);
+    }
 
-    (window as any).onYouTubeIframeAPIReady = () => {
-      if (iframeRef.current) {
+    const onPlayerReady = () => {
+      // Start updating time every 100ms
+      timeUpdateIntervalRef.current = setInterval(() => {
+        if (playerRef.current && playerRef.current.getCurrentTime) {
+          const time = playerRef.current.getCurrentTime();
+          onTimeUpdateRef.current(time);
+        }
+      }, 100);
+    };
+
+    const onPlayerStateChange = (event: any) => {
+      const isPlaying = event.data === (window as any).YT?.PlayerState?.PLAYING;
+      onPlayingChangeRef.current?.(isPlaying);
+    };
+
+    const initPlayer = () => {
+      if (iframeRef.current && videoId) {
         playerRef.current = new (window as any).YT.Player(iframeRef.current, {
           height: '100%',
           width: '100%',
@@ -43,79 +68,39 @@ const VideoPlayer = ({ videoUrl, onTimeUpdate }: VideoPlayerProps) => {
       }
     };
 
+    if ((window as any).YT && (window as any).YT.Player) {
+      initPlayer();
+    } else {
+      (window as any).onYouTubeIframeAPIReady = initPlayer;
+    }
+
     return () => {
-      document.body.removeChild(tag);
+      // Clean up interval
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+      // Clean up player
+      if (playerRef.current) {
+        playerRef.current.destroy();
+      }
     };
   }, [videoId]);
-
-  const onPlayerReady = (event: any) => {
-    setDuration(event.target.getDuration());
-    // Start updating time
-    const interval = setInterval(() => {
-      if (playerRef.current) {
-        const time = playerRef.current.getCurrentTime();
-        setCurrentTime(time);
-        onTimeUpdate(time);
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  };
-
-  const onPlayerStateChange = (event: any) => {
-    const playState = event.data;
-    // 1 = playing, 2 = paused
-    setIsPlaying(playState === (window as any).YT.PlayerState.PLAYING);
-  };
-
-  const togglePlayPause = () => {
-    if (playerRef.current) {
-      if (isPlaying) {
-        playerRef.current.pauseVideo();
-      } else {
-        playerRef.current.playVideo();
-      }
-    }
-  };
-
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
-    if (playerRef.current) {
-      playerRef.current.seekTo(newTime);
-      setCurrentTime(newTime);
-      onTimeUpdate(newTime);
-    }
-  };
-
-  const formatTime = (seconds: number): string => {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div className="flex flex-col w-full">
       {/* Video Container */}
       <div
-        className="bg-black rounded-lg overflow-hidden mt-[30px] mx-auto"
+        className="bg-black rounded-lg overflow-hidden mt-[30px]"
         style={{
-          width: '60%',
           minWidth: '400px',
           aspectRatio: '16 / 9',
         }}
       >
         <div
           ref={iframeRef}
-          style={{ width: '100%', height: '100%' }}
         />
       </div>
 
-      {/* Controls */}
     </div>
   );
 };

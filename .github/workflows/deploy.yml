@@ -39,11 +39,11 @@ jobs:
       
       - name: Verify build output
         run: |
-          if [ -d "out" ]; then
-            echo "✓ Build successful - 'out' directory created"
-            ls -la out/
+          if [ -d ".next/standalone" ]; then
+            echo "✓ Build successful - standalone build created"
+            ls -la .next/standalone
           else
-            echo "✗ Build failed - 'out' directory not found"
+            echo "✗ Build failed - .next/standalone directory not found"
             exit 1
           fi
       
