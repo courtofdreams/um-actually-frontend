@@ -8,6 +8,7 @@ import { fetchYoutubeTranscript } from "@/services/youtubeTranscript";
 import { analyzeVideoTranscript } from "@/services/videoAnalysis";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
+import {Skeleton} from "@/components/ui/skeleton";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { ProgressiveBar } from "@/components/ui/progressive-bar";
 import { AlertCircleIcon } from "lucide-react";
@@ -289,24 +290,6 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
 
       {/* Two column layout: Video+Transcript | Confidence+Sources */}
       <div className="flex flex-row gap-4 px-6 h-[calc(100vh-53px)]">
-        {/* Left Column - Confidence Score */}
-        <div className="w-1/5 min-w-[160px] max-w-[200px] flex-shrink-0">
-          <div className="content-box flex flex-col p-4 h-full">
-            <p className="text-left font-bold mb-1">
-              Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
-            </p>
-            <ProgressiveBar
-              className="mb-4"
-              progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
-            />
-            <p className="text-left font-bold mb-1">
-              Confidence Score Summary (Reasoning)
-            </p>
-            <p className="text-left text-sm">
-              {reasoning}
-            </p>
-          </div>
-        </div>
 
         {/* Left Column - Video Player + Transcript */}
         <div className='flex-grow flex flex-col h-full overflow-hidden'>
@@ -345,18 +328,25 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
           <div className="flex flex-col gap-8 justify-between h-full">
             <div className="content-box flex flex-col p-4">
               <p className="text-left font-bold mb-1">
-                Confidence Score: {confidenceScore}%
+                  Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
               </p>
               <ProgressiveBar
                   className="mb-4"
-                  progress={confidenceScore}
+                  progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
               />
               <p className="text-left font-bold mb-1">
                 Confidence Score Summary (Reasoning)
               </p>
-              <p className="text-left text-sm">
+              {confidenceScore === -1 ?
+                  <div className="pt-2 space-y-2">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-4" />
+                    ))}
+                    <Skeleton className="h-4 w-[250px]" />
+                  </div>
+              : <p className="text-left text-sm">
                 {reasoning}
-              </p>
+              </p>}
             </div>
 
             {showSources && selectedClaimIndex !== null && sources[selectedClaimIndex] ? (
@@ -383,9 +373,9 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
                 </div>
             ) : (
                 <div className="content-box p-6 text-center">
-                  <p className="text-gray-500 text-sm">
+                  {confidenceScore !== -1 && <p className="text-gray-500 text-sm">
                     Click on a highlighted claim in the transcript to see sources
-                  </p>
+                  </p>}
                 </div>
             )}
           </div>
