@@ -29,18 +29,25 @@ const Main = () => {
     }
 
     const determineInputType = () => {
+        console.log("Input text:", inputText);
+        console.log("Is YouTube URL?", isYoutubeUrl(inputText));
+        console.log("Is URL?", isURL(inputText));
+
         if (isYoutubeUrl(inputText)) {
+            console.log("Routing to VIDEO_ANALYSIS");
             setUserInput(inputText);
             setCurrentScreen(Screen.VIDEO_ANALYSIS);
             return;
         }
 
         if (!isURL(inputText)) {
+            console.log("Routing to TEXT_ANALYSIS (not a URL)");
             setUserInput(inputText);
             setCurrentScreen(Screen.TEXT_ANALYSIS);
             return;
         }
 
+        console.log("Invalid input - not YouTube URL and is a URL");
         alert("Please enter a valid YouTube URL or text input.");
         return;
 

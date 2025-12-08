@@ -26,8 +26,8 @@ interface TranscriptSegment {
 
 // Mock data for video analysis
 const mockVideoData = {
-  confidenceScores: 72,
-  reasoning: "Based on the video transcript analysis, several claims were fact-checked against reliable sources. The confidence score reflects the overall accuracy of statements made in the video.",
+  confidenceScores: -1,  // -1 indicates loading state
+  reasoning: "Loading...",
   transcript: [
     { id: "seg1", text: "The Earth's average temperature has increased", startTime: 0, endTime: 5, claim: "true", claimIndex: 0 },
     { id: "seg2", text: "by approximately 1.1 degrees Celsius since pre-industrial times.", startTime: 5, endTime: 10 },
@@ -118,9 +118,11 @@ type VideoAnalysisProps = {
   loadedVideoUrl?: string | null;
   loadedTranscript?: TranscriptSegment[] | null;
   loadedSources?: SourceGroup[] | null;
+  loadedConfidenceScore?: number | null;
+  loadedReasoning?: string | null;
 };
 
-const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: VideoAnalysisProps = {}) => {
+const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loadedConfidenceScore, loadedReasoning }: VideoAnalysisProps = {}) => {
   const router = useRouter();
   const { userInput } = useContext(AppContext);
   const [currentTime, setCurrentTime] = useState(0);
@@ -130,8 +132,8 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
-  const [confidenceScore, setConfidenceScore] = useState(mockVideoData.confidenceScores);
-  const [reasoning, setReasoning] = useState(mockVideoData.reasoning);
+  const [confidenceScore, setConfidenceScore] = useState(loadedConfidenceScore ?? mockVideoData.confidenceScores);
+  const [reasoning, setReasoning] = useState(loadedReasoning || mockVideoData.reasoning);
 
   const videoUrl = loadedVideoUrl || userInput;
 
@@ -189,6 +191,8 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
 
       let finalSources: SourceGroup[] = mockVideoData.sourcesList;
       let finalTranscript: TranscriptSegment[];
+      let finalConfidenceScore: number = mockVideoData.confidenceScores;
+      let finalReasoning: string = mockVideoData.reasoning;
 
       if (result.error) {
         setError(result.error);
@@ -216,6 +220,8 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
           // Update confidence scores from OpenAI
           setConfidenceScore(analysisResult.confidenceScores);
           setReasoning(analysisResult.reasoning);
+          finalConfidenceScore = analysisResult.confidenceScores;
+          finalReasoning = analysisResult.reasoning;
         } catch (error) {
           console.error("OpenAI analysis failed, using raw transcript:", error);
           setError("Failed to analyze transcript with AI. Showing raw transcript.");
@@ -232,13 +238,13 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
       setLoading(false);
 
       const analysisData: TextAnalysisResponse = {
-        confidenceScores: result.error ? mockVideoData.confidenceScores : confidenceScore,
-        reasoning: result.error ? mockVideoData.reasoning : reasoning,
+        confidenceScores: finalConfidenceScore,
+        reasoning: finalReasoning,
         htmlContent: finalTranscript.map(s => s.text).join(' ') || 'Video transcript',
         sourcesList: finalSources
       };
 
-      console.log("Saving transcript to history:", finalTranscript.length, "segments");
+      console.log("Saving to history - segments:", finalTranscript.length, "confidence:", finalConfidenceScore, "reasoning:", finalReasoning);
       const analysisId = saveToHistory(analysisData, 'video', urlToUse, finalTranscript);
 
       if (!loadedVideoUrl && analysisId && !result.error) {
@@ -283,6 +289,24 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources }: Vide
 
       {/* Two column layout: Video+Transcript | Confidence+Sources */}
       <div className="flex flex-row gap-4 px-6 h-[calc(100vh-53px)]">
+        {/* Left Column - Confidence Score */}
+        <div className="w-1/5 min-w-[160px] max-w-[200px] flex-shrink-0">
+          <div className="content-box flex flex-col p-4 h-full">
+            <p className="text-left font-bold mb-1">
+              Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
+            </p>
+            <ProgressiveBar
+              className="mb-4"
+              progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
+            />
+            <p className="text-left font-bold mb-1">
+              Confidence Score Summary (Reasoning)
+            </p>
+            <p className="text-left text-sm">
+              {reasoning}
+            </p>
+          </div>
+        </div>
 
         {/* Left Column - Video Player + Transcript */}
         <div className='flex-grow flex flex-col h-full overflow-hidden'>

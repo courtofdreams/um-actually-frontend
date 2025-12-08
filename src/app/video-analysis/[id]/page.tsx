@@ -33,6 +33,8 @@ export default function VideoAnalysisPage() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<AnalysisHistoryItem['transcript'] | null>(null);
   const [sources, setSources] = useState<TextAnalysisResponse['sourcesList'] | null>(null);
+  const [confidenceScore, setConfidenceScore] = useState<number | null>(null);
+  const [reasoning, setReasoning] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -41,6 +43,9 @@ export default function VideoAnalysisPage() {
     if (params.id !== currentId) {
       setVideoUrl(null);
       setTranscript(null);
+      setSources(null);
+      setConfidenceScore(null);
+      setReasoning(null);
       setIsLoading(true);
       setNotFound(false);
       setCurrentId(params.id as string);
@@ -57,7 +62,9 @@ export default function VideoAnalysisPage() {
             setVideoUrl(analysis.videoUrl);
             setTranscript(analysis.transcript || null);
             setSources(analysis.data?.sourcesList || null);
-            console.log("Loaded sources from localStorage:", analysis.data?.sourcesList);
+            setConfidenceScore(analysis.data?.confidenceScores ?? null);
+            setReasoning(analysis.data?.reasoning || null);
+            console.log("Loaded from localStorage - sources:", analysis.data?.sourcesList?.length, "confidence:", analysis.data?.confidenceScores, "reasoning:", analysis.data?.reasoning);
             setNotFound(false);
           } else {
             setNotFound(true);
@@ -138,7 +145,14 @@ export default function VideoAnalysisPage() {
         onNewAnalysisAction={handleNewAnalysis}
       />
       <SidebarInset>
-        <VideoAnalysis key={params.id as string} loadedVideoUrl={videoUrl} loadedTranscript={transcript} loadedSources={sources} />
+        <VideoAnalysis
+          key={params.id as string}
+          loadedVideoUrl={videoUrl}
+          loadedTranscript={transcript}
+          loadedSources={sources}
+          loadedConfidenceScore={confidenceScore}
+          loadedReasoning={reasoning}
+        />
       </SidebarInset>
     </SidebarProvider>
   );
