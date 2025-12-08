@@ -7,14 +7,14 @@ import { AppContext } from "@/contexts/AppContext";
 import { fetchYoutubeTranscript } from "@/services/youtubeTranscript";
 import { analyzeVideoTranscript } from "@/services/videoAnalysis";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
-import {Skeleton} from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { ProgressiveBar } from "@/components/ui/progressive-bar";
 import { AlertCircleIcon } from "lucide-react";
 import { saveToHistory } from "./HistorySidebar";
 import { useRouter } from "next/navigation";
 import { TextAnalysisResponse, SourceGroup } from "@/hooks/anaysis";
+import LoadingPage from "./ui/loading-page";
 
 interface TranscriptSegment {
   id: string;
@@ -281,6 +281,11 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
     setIsPlaying(playing);
   }, []);
 
+  // Show full loading page when initially loading (not from cache)
+  if (loading && !loadedVideoUrl) {
+    return <LoadingPage preview={videoUrl} type="video" />;
+  }
+
   return (
     <>
       {/* Top bar with sidebar trigger */}
@@ -295,12 +300,6 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
         <div className='flex-grow flex flex-col h-full overflow-hidden'>
           <div className="flex flex-col items-center">
             <VideoPlayer key={videoUrl} videoUrl={videoUrl} onTimeUpdate={handleTimeUpdate} onPlayingChange={handlePlayingChange} />
-            {loading && (
-              <div className="h-12 w-1/2 mt-8 flex justify-center items-center rounded-2xl bg-muted gap-4">
-                <Spinner  />
-                <p className="line-clamp-1">Loading Transcript...</p>
-              </div>
-            )}
           </div>
 
           {/* Error message */}
@@ -328,55 +327,55 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
           <div className="flex flex-col gap-8 justify-between h-full">
             <div className="content-box flex flex-col p-4">
               <p className="text-left font-bold mb-1">
-                  Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
+                Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
               </p>
               <ProgressiveBar
-                  className="mb-4"
-                  progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
+                className="mb-4"
+                progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
               />
               <p className="text-left font-bold mb-1">
                 Confidence Score Summary (Reasoning)
               </p>
               {confidenceScore === -1 ?
-                  <div className="pt-2 space-y-2">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <Skeleton key={i} className="h-4" />
-                    ))}
-                    <Skeleton className="h-4 w-[250px]" />
-                  </div>
-              : <p className="text-left text-sm">
-                {reasoning}
-              </p>}
+                <div className="pt-2 space-y-2">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Skeleton key={i} className="h-4" />
+                  ))}
+                  <Skeleton className="h-4 w-[250px]" />
+                </div>
+                : <p className="text-left text-sm">
+                  {reasoning}
+                </p>}
             </div>
 
             {showSources && selectedClaimIndex !== null && sources[selectedClaimIndex] ? (
-                <div className="relative mb-6 flex flex-col">
-                  <ConfidenceCard
-                      index={selectedClaimIndex}
-                      text={sources[selectedClaimIndex].claim}
-                      confidence={Math.round(sources[selectedClaimIndex].ratingPercent)}
-                      confidenceReason={sources[selectedClaimIndex].confidenceReason}
+              <div className="relative mb-6 flex flex-col">
+                <ConfidenceCard
+                  index={selectedClaimIndex}
+                  text={sources[selectedClaimIndex].claim}
+                  confidence={Math.round(sources[selectedClaimIndex].ratingPercent)}
+                  confidenceReason={sources[selectedClaimIndex].confidenceReason}
+                />
+                {sources[selectedClaimIndex].sources.map((source: any, srcIndex: number) => (
+                  <SourceCard
+                    index={srcIndex}
+                    zIndex={sources[selectedClaimIndex].sources.length - srcIndex}
+                    key={srcIndex}
+                    title={source.title}
+                    url={source.url}
+                    ratingStance={source.ratingStance}
+                    snippet={source.snippet}
+                    datePosted={source.datePosted}
+                    claimReference={source.claimReference}
                   />
-                  {sources[selectedClaimIndex].sources.map((source: any, srcIndex: number) => (
-                      <SourceCard
-                          index={srcIndex}
-                          zIndex={sources[selectedClaimIndex].sources.length - srcIndex}
-                          key={srcIndex}
-                          title={source.title}
-                          url={source.url}
-                          ratingStance={source.ratingStance}
-                          snippet={source.snippet}
-                          datePosted={source.datePosted}
-                          claimReference={source.claimReference}
-                      />
-                  ))}
-                </div>
+                ))}
+              </div>
             ) : (
-                <div className="content-box p-6 text-center">
-                  {confidenceScore !== -1 && <p className="text-gray-500 text-sm">
-                    Click on a highlighted claim in the transcript to see sources
-                  </p>}
-                </div>
+              <div className="content-box p-6 text-center">
+                {confidenceScore !== -1 && <p className="text-gray-500 text-sm">
+                  Click on a highlighted claim in the transcript to see sources
+                </p>}
+              </div>
             )}
           </div>
         </div>

@@ -10,9 +10,10 @@ import {
 
 type LoadingPageProps = {
   preview?: string;
+  type?: 'text' | 'video';
 };
 
-const LOADING_STAGES = [
+const TEXT_LOADING_STAGES = [
   { message: "Analyzing your text...", detail: "Identifying factual claims" },
   { message: "Processing claims...", detail: "Extracting key statements to verify" },
   { message: "Searching for sources...", detail: "Finding reliable references" },
@@ -21,17 +22,28 @@ const LOADING_STAGES = [
   { message: "Building your report...", detail: "Compiling analysis results" },
 ];
 
-export const LoadingPage = ({ preview }: LoadingPageProps) => {
+const VIDEO_LOADING_STAGES = [
+  { message: "Fetching video data...", detail: "Connecting to YouTube" },
+  { message: "Extracting transcript...", detail: "Processing video captions" },
+  { message: "Analyzing content...", detail: "Identifying factual claims" },
+  { message: "Searching for sources...", detail: "Finding reliable references" },
+  { message: "Verifying claims...", detail: "Cross-referencing with trusted sources" },
+  { message: "Building your report...", detail: "Compiling analysis results" },
+];
+
+export const LoadingPage = ({ preview, type = 'text' }: LoadingPageProps) => {
   const [stageIndex, setStageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
+  const LOADING_STAGES = type === 'video' ? VIDEO_LOADING_STAGES : TEXT_LOADING_STAGES;
+
   useEffect(() => {
-    // Cycle through stages every 6 seconds (slowed down 2x)
+    // Cycle through stages every 5 seconds
     const stageInterval = setInterval(() => {
       setStageIndex((prev) => (prev + 1) % LOADING_STAGES.length);
     }, 5000);
 
-    // Animate progress bar smoothly (slowed down 2x)
+    // Animate progress bar smoothly
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         // Progress moves faster at start, slows down approaching 90%
@@ -47,7 +59,7 @@ export const LoadingPage = ({ preview }: LoadingPageProps) => {
       clearInterval(stageInterval);
       clearInterval(progressInterval);
     };
-  }, []);
+  }, [LOADING_STAGES.length]);
 
   const currentStage = LOADING_STAGES[stageIndex];
 
@@ -95,11 +107,19 @@ export const LoadingPage = ({ preview }: LoadingPageProps) => {
 
       {preview && (
         <div className="mt-6 max-w-2xl w-full px-4">
-          <p className="text-xs text-muted-foreground mb-2 text-left">Your submission:</p>
+          <p className="text-xs text-muted-foreground mb-2 text-left">
+            {type === 'video' ? 'Video URL:' : 'Your submission:'}
+          </p>
           <div className="p-4 rounded-lg bg-muted/50 border border-border/50 max-h-48 overflow-y-auto">
-            <p className="text-sm text-muted-foreground text-left whitespace-pre-wrap line-clamp-6">
-              {preview}
-            </p>
+            {type === 'video' ? (
+              <p className="text-sm text-muted-foreground text-left break-all">
+                {preview}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground text-left whitespace-pre-wrap line-clamp-6">
+                {preview}
+              </p>
+            )}
           </div>
         </div>
       )}
