@@ -7,6 +7,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
+import {Kbd, KbdGroup} from "@/components/ui/kbd";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import TypingText from "@/components/ui/shadcn-io/typing-text";
 
@@ -26,6 +27,15 @@ const Main = () => {
 
     const updateText = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         setInputText(event.target.value);
+    }
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            if (inputText.trim() !== "") {
+                determineInputType();
+            }
+        }
     }
 
     const determineInputType = () => {
@@ -55,7 +65,7 @@ const Main = () => {
                 <DesignMark className={"mb-6 w-12"} fill={"#000"}/>
                 <p className="mb-2 text-lg">Welcome to</p>
                 <p className="mb-12 text-4xl font-bold tracking-tight text-heading md:text-5xl lg:text-6xl">Um, Actually?</p>
-                <InputGroup className={"mb-8 w-3/4 md:w-1/2 max-w-150 relative items-start"}>
+                <InputGroup className={"mb-8 w-3/4 md:w-1/2 max-w-150 relative items-start min-h-40"}>
                   {inputText === "" && (
                       <div className={"flex flex-row items-center justify-start absolute top-3 left-3 pointer-events-none text-base md:text-sm text-muted-foreground"}>
                         <p>Paste here&nbsp;</p>
@@ -73,8 +83,20 @@ const Main = () => {
                       name={"userInput"}
                       value={inputText}
                       onChange={updateText}
+                      onKeyDown={handleKeyDown}
                   />
                   <InputGroupAddon align="block-end" className={"justify-end"}>
+                    <div className="flex flex-col items-center gap-4">
+                      <p className="text-xs text-muted-foreground">
+                        Use{" "}
+                        <KbdGroup>
+                          <Kbd>⇧</Kbd>
+                          <span>+</span>
+                          <Kbd>⏎</Kbd>
+                        </KbdGroup>{" "}
+                        to add a new line
+                      </p>
+                    </div>
                     <InputGroupButton
                       variant="default"
                       className="rounded-full"

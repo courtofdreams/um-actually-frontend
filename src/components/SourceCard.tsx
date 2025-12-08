@@ -2,6 +2,15 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import StanceBadge, { Stance } from "./StanceBadge";
 import { faArrowUpRightFromSquare } from "@fortawesome/free-solid-svg-icons/faArrowUpRightFromSquare";
 import { Button } from "./ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "./ui/dialog";
 
 type SourceCardProps = {
     claimReference?: string;
@@ -33,7 +42,16 @@ const logoMapping: Record<string, string> = {
     "Fox News": "/images/fox.png",
 };
 
-const SourceCard = ({ claimReference, title, url, ratingStance, snippet, datePosted, index }: SourceCardProps) => {
+const getOutletFromUrl = (url: string): string => {
+    try {
+        const hostname = new URL(url).hostname.replace("www.", "");
+        return hostname;
+    } catch {
+        return "Unknown";
+    }
+};
+
+const SourceCard = ({ claimReference, title, url, ratingStance, ratingReason, snippet, datePosted, index }: SourceCardProps) => {
 
     const openLink = () => {
         console.log("Opening URL:", url);
@@ -79,9 +97,56 @@ const SourceCard = ({ claimReference, title, url, ratingStance, snippet, datePos
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
-                     <Button onClick={openLink} variant="secondary" size="sm" className="rounded-full">
-                        See detailed rating
-                     </Button>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="secondary" size="sm" className="rounded-full">
+                                See detailed information
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{title}</DialogTitle>
+                                <DialogDescription>
+                                    Detailed rating of the source
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                {claimReference && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500 mb-1">Claim</h4>
+                                        <p className="text-md text-center italic text-gray-900">"{claimReference}"</p>
+                                    </div>
+                                )}
+                                <div>
+                                    <h4 className="text-sm font-medium text-gray-500 mb-1">Rating</h4>
+                                    <StanceBadge stance={stanceMapping[ratingStance.toLowerCase()] || "undefined"} />
+                                </div>
+                                {ratingReason && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500 mb-1">Reasoning</h4>
+                                        <p className="text-sm text-gray-700 leading-relaxed">{ratingReason}</p>
+                                    </div>
+                                )}
+                                {snippet && (
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-500 mb-1">Excerpt</h4>
+                                        <p className="text-sm text-gray-700 leading-relaxed">{snippet}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <div className="flex w-full items-center justify-between">
+                                    <span className="text-xs text-gray-500">
+                                        Source: {getOutletFromUrl(url)}
+                                    </span>
+                                    <Button onClick={openLink} variant="default" className="rounded-full">
+                                        <FontAwesomeIcon className="h-4 w-4" icon={faArrowUpRightFromSquare} />
+                                        Read article
+                                    </Button>
+                                </div>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                     <Button onClick={openLink} variant="default" size="sm" className="rounded-full">
                         <FontAwesomeIcon className="h-4 w-4" icon={faArrowUpRightFromSquare} />
                         Read article

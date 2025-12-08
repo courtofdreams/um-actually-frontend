@@ -5,6 +5,7 @@ import { DM_Sans } from 'next/font/google'
 const dm = DM_Sans({
   subsets: ['latin'],
   display: 'swap',
+  style: ['italic','normal']
 })
 
 export const metadata: Metadata = {
