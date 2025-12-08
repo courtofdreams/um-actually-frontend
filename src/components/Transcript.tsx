@@ -28,6 +28,82 @@ const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+// Fuzzy match to find the best substring in text that matches the claim
+// Extends match to the end of the sentence
+const findClaimInText = (text: string, claim: string): { start: number; end: number } | null => {
+  // First, try exact match
+  const exactIndex = text.indexOf(claim);
+  if (exactIndex !== -1) {
+    // Extend to end of sentence
+    const endOfSentence = findEndOfSentence(text, exactIndex + claim.length);
+    return { start: exactIndex, end: endOfSentence };
+  }
+
+  // If no exact match, try case-insensitive
+  const lowerText = text.toLowerCase();
+  const lowerClaim = claim.toLowerCase();
+  const caseInsensitiveIndex = lowerText.indexOf(lowerClaim);
+  if (caseInsensitiveIndex !== -1) {
+    // Extend to end of sentence
+    const endOfSentence = findEndOfSentence(text, caseInsensitiveIndex + claim.length);
+    return { start: caseInsensitiveIndex, end: endOfSentence };
+  }
+
+  // Try to find longest common word sequence
+  const claimWords = claim.toLowerCase().split(/\s+/);
+  const textWords = text.toLowerCase().split(/\s+/);
+
+  let bestMatch = { start: -1, end: -1, length: 0 };
+
+  // Look for sequences of matching words
+  for (let i = 0; i < textWords.length; i++) {
+    for (let j = 0; j < claimWords.length; j++) {
+      let matchLength = 0;
+      let k = 0;
+
+      while (i + k < textWords.length && j + k < claimWords.length &&
+             textWords[i + k] === claimWords[j + k]) {
+        matchLength++;
+        k++;
+      }
+
+      if (matchLength > bestMatch.length) {
+        // Calculate character positions
+        const wordsBeforeMatch = textWords.slice(0, i);
+        const matchWords = textWords.slice(i, i + matchLength);
+        const charStart = wordsBeforeMatch.join(' ').length + (wordsBeforeMatch.length > 0 ? 1 : 0);
+        const charEnd = charStart + matchWords.join(' ').length;
+
+        bestMatch = { start: charStart, end: charEnd, length: matchLength };
+      }
+    }
+  }
+
+  // If we found a match with at least 2 words, extend to end of sentence
+  if (bestMatch.length >= 2) {
+    const endOfSentence = findEndOfSentence(text, bestMatch.end);
+    return { start: bestMatch.start, end: endOfSentence };
+  }
+
+  // Otherwise, return null (no good match found)
+  return null;
+};
+
+// Helper function to find the end of a sentence starting from a position
+const findEndOfSentence = (text: string, startPos: number): number => {
+  // Look for sentence-ending punctuation: . ! ? or end of text
+  const sentenceEnd = /[.!?]/;
+
+  for (let i = startPos; i < text.length; i++) {
+    if (sentenceEnd.test(text[i])) {
+      return i + 1; // Include the punctuation
+    }
+  }
+
+  // If no punctuation found, return end of text
+  return text.length;
+};
+
 
 const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef, isPlaying = false }: TranscriptProps) => {
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -173,35 +249,58 @@ const Transcript = ({ segments, currentTime, onClaimClick, scrollContainerRef, i
             </p>
 
             <p className="text-gray-800 flex-grow">
-              {segment.claim && segment.text.includes(segment.claim) ? (
+              {segment.claim ? (
                 <>
                   {(() => {
-                    const claimIndex = segment.text.indexOf(segment.claim);
-                    const beforeClaim = segment.text.substring(0, claimIndex);
-                    const afterClaim = segment.text.substring(claimIndex + segment.claim.length);
+                    // Use fuzzy matching to find claim in text
+                    const match = findClaimInText(segment.text, segment.claim);
 
-                    return (
-                      <>
-                        {beforeClaim && <span>{beforeClaim}</span>}
+                    if (match) {
+                      const beforeClaim = segment.text.substring(0, match.start);
+                      const claimText = segment.text.substring(match.start, match.end);
+                      const afterClaim = segment.text.substring(match.end);
+
+                      return (
+                        <>
+                          {beforeClaim && <span>{beforeClaim}</span>}
+                          <span
+                            onClick={() => {
+                              console.log(">>> Claim span clicked! Segment:", segment.id);
+                              console.log(">>> Claim text:", segment.claim);
+                              console.log(">>> Matched text:", claimText);
+                              console.log(">>> Claim index:", segment.claimIndex);
+                              if (segment.claimIndex !== undefined) {
+                                console.log(">>> Calling onClaimClick with index:", segment.claimIndex);
+                                onClaimClick(segment.claimIndex);
+                              } else {
+                                console.log(">>> ERROR: claimIndex is undefined, not calling onClaimClick");
+                              }
+                            }}
+                            className="bg-yellow-200 cursor-pointer hover:bg-yellow-300 transition-colors px-1 rounded font-semibold"
+                          >
+                            {claimText}
+                          </span>
+                          {afterClaim && <span>{afterClaim}</span>}
+                        </>
+                      );
+                    } else {
+                      // If no good match found, highlight the entire segment
+                      console.log(">>> No fuzzy match found. Highlighting entire segment.");
+                      console.log(">>> Segment text:", segment.text);
+                      console.log(">>> Claim:", segment.claim);
+                      return (
                         <span
                           onClick={() => {
-                            console.log(">>> Claim span clicked! Segment:", segment.id);
-                            console.log(">>> Claim text:", segment.claim);
-                            console.log(">>> Claim index:", segment.claimIndex);
                             if (segment.claimIndex !== undefined) {
-                              console.log(">>> Calling onClaimClick with index:", segment.claimIndex);
                               onClaimClick(segment.claimIndex);
-                            } else {
-                              console.log(">>> ERROR: claimIndex is undefined, not calling onClaimClick");
                             }
                           }}
                           className="bg-yellow-200 cursor-pointer hover:bg-yellow-300 transition-colors px-1 rounded font-semibold"
                         >
-                          {segment.claim}
+                          {segment.text}
                         </span>
-                        {afterClaim && <span>{afterClaim}</span>}
-                      </>
-                    );
+                      );
+                    }
                   })()}
                 </>
               ) : (
