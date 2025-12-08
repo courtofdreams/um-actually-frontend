@@ -289,24 +289,6 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
 
       {/* Two column layout: Video+Transcript | Confidence+Sources */}
       <div className="flex flex-row gap-4 px-6 h-[calc(100vh-53px)]">
-        {/* Left Column - Confidence Score */}
-        <div className="w-1/5 min-w-[160px] max-w-[200px] flex-shrink-0">
-          <div className="content-box flex flex-col p-4 h-full">
-            <p className="text-left font-bold mb-1">
-              Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
-            </p>
-            <ProgressiveBar
-              className="mb-4"
-              progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
-            />
-            <p className="text-left font-bold mb-1">
-              Confidence Score Summary (Reasoning)
-            </p>
-            <p className="text-left text-sm">
-              {reasoning}
-            </p>
-          </div>
-        </div>
 
         {/* Left Column - Video Player + Transcript */}
         <div className='flex-grow flex flex-col h-full overflow-hidden'>
@@ -345,11 +327,11 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
           <div className="flex flex-col gap-8 justify-between h-full">
             <div className="content-box flex flex-col p-4">
               <p className="text-left font-bold mb-1">
-                Confidence Score: {confidenceScore}%
+                Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
               </p>
               <ProgressiveBar
                   className="mb-4"
-                  progress={confidenceScore}
+                  progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
               />
               <p className="text-left font-bold mb-1">
                 Confidence Score Summary (Reasoning)
