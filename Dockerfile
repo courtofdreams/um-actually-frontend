@@ -29,21 +29,16 @@ ENV NEXT_PUBLIC_BACKEND_API_URL=${NEXT_PUBLIC_BACKEND_API_URL}
 RUN npm run build
 
 # Stage 3: Production
-FROM nginx:alpine AS runner
+FROM node:20-alpine AS runner
+WORKDIR /app
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy standalone output
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/static ./public/_next/static
 
-# Copy built static files from builder
-COPY --from=builder /app/out /usr/share/nginx/html
+EXPOSE 3000
+ENV PORT=3000
 
-# Expose port 8080 (Fly.io default)
-EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/ || exit 1
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]
 

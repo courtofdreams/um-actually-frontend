@@ -34,7 +34,6 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
-          # Set backend URL for build-time (static export needs this)
           NEXT_PUBLIC_BACKEND_API_URL: https://um-actually-backend.fly.dev/api
       
       - name: Verify build output
