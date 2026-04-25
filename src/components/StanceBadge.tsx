@@ -1,4 +1,4 @@
-export type Stance = "partial" | "mostly" | "opposite" | "undefined";
+export type Stance = "partial" | "mostly" | "undefined" | "insufficient" | "weakly";
 
 export type StanceBadgeProps = {
     stance: Stance;
@@ -20,8 +20,14 @@ const STANCE_CONFIG: Record<
         text: "text-green-500",
         icon: "text-green-400",
     },
-    opposite: {
-        label: "Opposite",
+    weakly: {
+        label: "Weakly Support",
+        border: "border-red-400",
+        text: "text-red-500",
+        icon: "text-red-400",
+    },
+    insufficient: {
+        label: "Insufficient Evidence",
         border: "border-red-400",
         text: "text-red-500",
         icon: "text-red-400",
@@ -47,7 +53,8 @@ const StanceBadge = ({ stance }: StanceBadgeProps) => {
             >
                 {stance === "partial" && "✗✓"}
                 {stance === "mostly" && "🤝"}
-                {stance === "opposite" && (
+                {stance === "insufficient" && "?"}
+                {stance === "weakly" && (
                     <svg
                         className="h-3 w-3"
                         viewBox="0 0 24 24"

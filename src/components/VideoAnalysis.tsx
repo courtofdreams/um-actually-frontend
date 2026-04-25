@@ -1,8 +1,7 @@
 import VideoPlayer from "./VideoPlayer";
 import Transcript from "./Transcript";
 import SourceCard from "./SourceCard";
-import ConfidenceCard from "./ConfidenceCard";
-import { useContext, useState, useEffect, useRef, useCallback } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { AppContext } from "@/contexts/AppContext";
 import { fetchYoutubeTranscript } from "@/services/youtubeTranscript";
 import { analyzeVideoTranscript } from "@/services/videoAnalysis";
@@ -15,6 +14,96 @@ import { saveToHistory } from "./HistorySidebar";
 import { useRouter } from "next/navigation";
 import { TextAnalysisResponse, SourceGroup } from "@/hooks/anaysis";
 import LoadingPage from "./ui/loading-page";
+import { InfoIcon, SparklesIcon } from "lucide-react";
+
+type ConfidenceInfo = {
+  level: string;
+  tone: "positive" | "warning" | "danger" | "neutral";
+  title: string;
+  description: string;
+  action: string;
+};
+
+const toneStyles: Record<ConfidenceInfo["tone"], string> = {
+  positive: "bg-green-50/80 border-green-200 text-green-700",
+  warning: "bg-yellow-50/80 border-yellow-200 text-yellow-700",
+  danger: "bg-red-50/80 border-red-200 text-red-700",
+  neutral: "bg-pink-50/80 border-pink-200 text-pink-700",
+};
+
+const getConfidenceInfo = (score: number): ConfidenceInfo => {
+  const value = Math.max(0, Math.min(100, Number(score) || 0));
+
+  if (value >= 90) {
+    return {
+      level: "Very High Confidence",
+      tone: "positive",
+      title: "What this score means:",
+      description:
+        "Multiple reliable sources strongly support this claim, with high agreement across evidence. Low uncertainty detected.",
+      action: "Reasonably safe to rely on, though you can still inspect sources for context.",
+    };
+  }
+
+  if (value >= 75) {
+    return {
+      level: "High Confidence",
+      tone: "positive",
+      title: "What this score means:",
+      description:
+        "The claim is well supported by credible evidence, though minor ambiguity or missing context may remain.",
+      action: "Generally trustworthy, with optional source review for added context.",
+    };
+  }
+
+  if (value >= 60) {
+    return {
+      level: "Moderate Confidence",
+      tone: "warning",
+      title: "What this score means:",
+      description:
+        "Evidence mostly supports this claim, but there may be gaps, limited corroboration, or some disagreement across sources.",
+      action: "Use with caution and verify if the claim is important or high stakes.",
+    };
+  }
+
+  if (value >= 40) {
+    return {
+      level: "Low Confidence",
+      tone: "warning",
+      title: "What this score means:",
+      description:
+        "Evidence is limited, conflicting, or difficult to verify. Low confidence does not necessarily mean the claim is false — it may indicate insufficient public evidence or contested information.",
+      action: "Verify before relying on or sharing this claim.",
+    };
+  }
+
+  if (value >= 20) {
+    return {
+      level: "Very Low Confidence",
+      tone: "danger",
+      title: "What this score means:",
+      description:
+        "Little reliable support was found, or sources significantly disagree. The claim may be misleading, incomplete, or hard to validate.",
+      action: "Independent verification strongly recommended before acting on this.",
+    };
+  }
+
+  return {
+    level: "Minimal Confidence",
+    tone: "danger",
+    title: "What this score means:",
+    description:
+      "There is very weak or no trustworthy evidence supporting this claim. High uncertainty or potential misinformation risk detected.",
+    action: "Do not rely on this claim without strong external verification.",
+  };
+};
+
+const mapClaimType = (claimType?: string): "verifiable" | "anonymous_source" | "subjective_inference" => {
+  if (claimType === "anonymous_source") return "anonymous_source";
+  if (claimType === "inference" || claimType === "subjective_inference") return "subjective_inference";
+  return "verifiable";
+};
 
 interface TranscriptSegment {
   id: string;
@@ -135,8 +224,14 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
   const [confidenceScore, setConfidenceScore] = useState(loadedConfidenceScore ?? mockVideoData.confidenceScores);
   const [reasoning, setReasoning] = useState(loadedReasoning || mockVideoData.reasoning);
+  const [toggleInfo, setToggleInfo] = useState(false);
+  const confidenceInfo = confidenceScore !== -1 && confidenceScore !== null ? getConfidenceInfo(confidenceScore) : null;
 
   const videoUrl = loadedVideoUrl || userInput;
+
+  const handleInfoToggle = () => {
+    setToggleInfo(!toggleInfo);
+  };
 
   const initialTranscript = loadedTranscript && loadedTranscript.length > 0
     ? loadedTranscript
@@ -254,7 +349,7 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
     };
 
     loadTranscript();
-  }, [loadedVideoUrl, loadedTranscript, userInput, router]);
+  }, [loadedVideoUrl, loadedTranscript, loadedSources, userInput, router]);
 
   const handleClaimClick = (claimIndex: number) => {
     console.log("===== CLAIM CLICKED DEBUG =====");
@@ -273,13 +368,13 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
     setShowSources(true);
   };
 
-  const handleTimeUpdate = useCallback((time: number) => {
+  const handleTimeUpdate = (time: number) => {
     setCurrentTime(time);
-  }, []);
+  };
 
-  const handlePlayingChange = useCallback((playing: boolean) => {
+  const handlePlayingChange = (playing: boolean) => {
     setIsPlaying(playing);
-  }, []);
+  };
 
   // Show full loading page when initially loading (not from cache)
   if (loading && !loadedVideoUrl) {
@@ -327,15 +422,27 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
           <div className="flex flex-col gap-8 justify-between h-full">
             <div className="content-box flex flex-col p-4">
               <p className="text-left font-bold mb-1">
-                Confidence Score: {confidenceScore === -1 || confidenceScore === null ? '--' : confidenceScore}%
+                Overall verifiability score {confidenceScore === -1 || confidenceScore === null ? "--" : confidenceScore}% <InfoIcon className="inline-block align-text-bottom cursor-pointer" size={20} onClick={handleInfoToggle} />
               </p>
               <ProgressiveBar
                 className="mb-4"
                 progress={confidenceScore === -1 || confidenceScore === null ? 0 : confidenceScore}
               />
-              <p className="text-left font-bold mb-1">
-                Confidence Score Summary (Reasoning)
-              </p>
+              {toggleInfo && (
+                <>
+                  <div className={`mb-4 rounded-xl border ${toneStyles[confidenceInfo?.tone || "neutral"]} px-4 py-3 text-left`}>
+                    <p className="text-sm leading-relaxed text-stone-700">
+                      <span className="font-semibold text-amber-900">What this score means:</span> {confidenceInfo ? confidenceInfo.description : "This score reflects the overall confidence in the claim based on the available evidence. Higher scores indicate stronger support from credible sources, while lower scores suggest limited or conflicting evidence."}
+                    </p>
+                  </div>
+                  <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-3 text-left">
+                    <p className="text-sm leading-relaxed text-stone-700">
+                      <span className="font-semibold text-blue-900">What to do:</span> {confidenceInfo ? confidenceInfo.action : "Use this score as a general guide to the reliability of the claim. For important or high-stakes claims, consider reviewing the supporting sources and reasoning in detail, especially if the score is not very high."}
+                    </p>
+                  </div>
+                </>
+              )}
+              <p className="text-left font-bold mb-1"><SparklesIcon className="inline-block" size={15} />AI Reasoning Summary</p>
               {confidenceScore === -1 ?
                 <div className="pt-2 space-y-2">
                   {Array.from({ length: 8 }).map((_, i) => (
@@ -350,25 +457,17 @@ const VideoAnalysis = ({ loadedVideoUrl, loadedTranscript, loadedSources, loaded
 
             {showSources && selectedClaimIndex !== null && sources[selectedClaimIndex] ? (
               <div className="relative mb-6 flex flex-col">
-                <ConfidenceCard
+                <SourceCard
                   index={selectedClaimIndex}
-                  text={sources[selectedClaimIndex].claim}
-                  confidence={Math.round(sources[selectedClaimIndex].ratingPercent)}
+                  key={selectedClaimIndex}
+                  claim={sources[selectedClaimIndex].claim}
+                  claimType={mapClaimType(sources[selectedClaimIndex].claimType)}
                   confidenceReason={sources[selectedClaimIndex].confidenceReason}
+                  ratingPercent={Math.round(sources[selectedClaimIndex].ratingPercent)}
+                  confidenceCeiling={sources[selectedClaimIndex].confidenceCeiling ?? 95}
+                  aiLimitation={sources[selectedClaimIndex].aiLimitation ?? ""}
+                  sources={sources[selectedClaimIndex].sources}
                 />
-                {sources[selectedClaimIndex].sources.map((source: any, srcIndex: number) => (
-                  <SourceCard
-                    index={srcIndex}
-                    zIndex={sources[selectedClaimIndex].sources.length - srcIndex}
-                    key={srcIndex}
-                    title={source.title}
-                    url={source.url}
-                    ratingStance={source.ratingStance}
-                    snippet={source.snippet}
-                    datePosted={source.datePosted}
-                    claimReference={source.claimReference}
-                  />
-                ))}
               </div>
             ) : (
               <div className="content-box p-6 text-center">
